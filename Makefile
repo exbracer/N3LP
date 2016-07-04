@@ -1,5 +1,5 @@
-#CXX=g++
-CXX=g++-6 # for Mac OS platform
+CXX=g++
+#CXX=g++-6 # for Mac OS platform
 #CXX=g++-5 # for Mac OS platform, lower version
 #CXX=g++-4.9 # for Mac OS platform, lower version
 
