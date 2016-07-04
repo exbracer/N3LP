@@ -1,6 +1,7 @@
 CXX=g++
 
-EIGEN_LOCATION=$$HOME/local/eigen_new #Change this line to use Eigen
+#EIGEN_LOCATION=$$HOME/local/eigen_new #Change this line to use Eigen
+EIGEN_LOCATION=./Eigen
 BUILD_DIR=objs
 
 CXXFLAGS=
