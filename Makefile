@@ -1,7 +1,10 @@
-CXX=g++
+#CXX=g++
+CXX=g++-6 # for Mac OS platform
+#CXX=g++-5 # for Mac OS platform, lower version
+#CXX=g++-4.9 # for Mac OS platform, lower version
 
 #EIGEN_LOCATION=$$HOME/local/eigen_new #Change this line to use Eigen
-EIGEN_LOCATION=./Eigen
+EIGEN_LOCATION=./ 
 BUILD_DIR=objs
 
 CXXFLAGS=
@@ -15,7 +18,7 @@ CXXFLAGS+=-m64
 CXXFLAGS+=-DEIGEN_DONT_PARALLELIZE
 CXXFLAGS+=-DEIGEN_NO_DEBUG
 CXXFLAGS+=-DEIGEN_NO_STATIC_ASSERT
-CXXFLAGS+=-I$(EIGEN_LOCATION)
+CXXFLAGS+=-I $(EIGEN_LOCATION)
 CXXFLAGS+=-fopenmp
 
 SRCS=$(shell ls *.cpp)
