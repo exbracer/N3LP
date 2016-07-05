@@ -434,7 +434,8 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
 
   std::cout << std::endl;
   gettimeofday(&end, 0);
-  std::cout << "Training time for this epoch: " << (end.tv_sec-start.tv_sec)/60.0 << " min." << std::endl;
+  //std::cout << "Training time for this epoch: " << (end.tv_sec-start.tv_sec)/60.0 << " min." << std::endl;
+  std::cout << "Training time for this epoch: " << ((end.tv_sec-start.tv_sec)*1000000 + (end.tv_usec-start.tv_usec))/1000.0 << " ms." << std::endl;
   std::cout << "Training Loss (/sentence):    " << lossTrain/this->trainData.size() << std::endl;
   gettimeofday(&start, 0);
 
@@ -457,7 +458,8 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
   }
 
   gettimeofday(&end, 0);
-  std::cout << "Evaluation time for this epoch: " << (end.tv_sec-start.tv_sec)/60.0 << " min." << std::endl;
+  //std::cout << "Evaluation time for this epoch: " << (end.tv_sec-start.tv_sec)/60.0 << " min." << std::endl;
+  std::cout << "Evaluation time for this epoch: " << ((end.tv_sec-start.tv_sec)*1000000+(end_tv_usec-start.tv_usec))/1000.0 << " ms." << std::endl;
   std::cout << "Development loss (/sentence): " << perpDev/this->devData.size() << std::endl;
   std::cout << "Development perplexity (global): " << exp(perpDev/denom) << std::endl;
 }
