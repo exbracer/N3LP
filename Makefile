@@ -7,6 +7,8 @@ CXX=g++
 EIGEN_LOCATION=./ 
 BUILD_DIR=objs
 
+
+
 CXXFLAGS=
 #CXXFLAGS+=-Wall
 CXXFLAGS+=-O3
@@ -20,6 +22,10 @@ CXXFLAGS+=-DEIGEN_NO_DEBUG
 CXXFLAGS+=-DEIGEN_NO_STATIC_ASSERT
 CXXFLAGS+=-I $(EIGEN_LOCATION)
 CXXFLAGS+=-fopenmp
+
+CXXFLAGS+=-ltcmalloc -L /home/qiao/user/lib
+
+#CXXFLAGS+=-ftree-vectorizer-verbose=1
 
 SRCS=$(shell ls *.cpp)
 OBJS=$(SRCS:.cpp=.o)

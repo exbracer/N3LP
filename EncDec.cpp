@@ -366,11 +366,20 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
   const Real clipThreshold = 3.0;
   struct timeval start, end;
 
+	// 
+	struct timeval k_start, k_end;
+	struct timeval k_start_1, k_end_1;
+	struct timeval k_start_2, k_end_2;
+	Real k_time = 0.0;
+	Real k_time_1 = 0.0;
+	Real k_time_2 = 0.0;
+
   if (args.empty()){
-    for (int i = 0; i < numThreads; ++i){
+	std::cout << "hell0'" << std::endl;
+	  for (int i = 0; i < numThreads; ++i){
       args.push_back(new EncDec::ThreadArg(*this));
 
-      for (int j = 0; j < 200; ++j){
+      for (int j = 0; j < 200; ++j){    //<??> why j < 200 here
 	args[i]->encState.push_back(new LSTM::State);
 	args[i]->decState.push_back(new LSTM::State);
       }
@@ -379,7 +388,7 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
     for (int i = 0, step = this->trainData.size()/miniBatchSize; i < step; ++i){
       miniBatch.push_back(std::pair<int, int>(i*miniBatchSize, (i == step-1 ? this->trainData.size()-1 : (i+1)*miniBatchSize-1)));
     }
-
+	
     grad.lstmSrcGrad = LSTM::Grad(this->enc);
     grad.lstmTgtGrad = LSTM::Grad(this->dec);
     grad.softmaxGrad = SoftMax::Grad(this->softmax);
@@ -387,15 +396,23 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
     //std::sort(this->trainData.begin(), this->trainData.end(), sort_pred());
   }
 
-  //this->rnd.shuffle(miniBatch);
-  this->rnd.shuffle(this->trainData);
+	 std::cout << "number of miniBatch = " << miniBatch.size() << std::endl;
+	 std::cout << "first pair is " << miniBatch[0].first << " and " << miniBatch[0].second << std::endl;
+  
+
+	
+	//this->rnd.shuffle(miniBatch);
+  this->rnd.shuffle(this->trainData); // <??> this part can be faster??
   gettimeofday(&start, 0);
 
   int count = 0;
-
+  k_time = 0.0;
+  k_time_1 = 0.0;
+  k_time_2 = 0.0;
   for (auto it = miniBatch.begin(); it != miniBatch.end(); ++it){
-    std::cout << "\r"
-	      << "Progress: " << ++count << "/" << miniBatch.size() << " mini batches" << std::flush;
+    //  std::cout << "\r" << "Progress: " << ++count << "/" << miniBatch.size() << " mini batches" << std::flush;
+	
+	  gettimeofday(&k_start, NULL);
 
 #pragma omp parallel for num_threads(numThreads) schedule(dynamic) shared(args)
     for (int i = it->first; i <= it->second; ++i){
@@ -405,7 +422,10 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
       args[id]->loss += loss;
     }
 
-    for (int id = 0; id < numThreads; ++id){
+	gettimeofday(&k_end, NULL);
+	k_time += ((k_end.tv_sec-k_start.tv_sec)*1000000+(k_end.tv_usec-k_start.tv_usec))/1000.0;
+    gettimeofday(&k_start_1, NULL);
+	for (int id = 0; id < numThreads; ++id){
       grad += args[id]->grad;
       args[id]->grad.init();
       lossTrain += args[id]->loss;
@@ -430,13 +450,19 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
     }
 
     grad.init();
+	gettimeofday(&k_end_1, NULL);
+	k_time_1 += ((k_end_1.tv_sec-k_start_1.tv_sec)*1000000+(k_end_1.tv_usec-k_start_1.tv_usec))/1000.0;
   }
 
   std::cout << std::endl;
   gettimeofday(&end, 0);
   //std::cout << "Training time for this epoch: " << (end.tv_sec-start.tv_sec)/60.0 << " min." << std::endl;
   std::cout << "Training time for this epoch: " << ((end.tv_sec-start.tv_sec)*1000000 + (end.tv_usec-start.tv_usec))/1000.0 << " ms." << std::endl;
+  std::cout << "Time for parallel part: " << k_time << " ms." << std::endl;
+  std::cout << "Time for seq part: " << k_time_1 << " ms." << std::endl;
+
   std::cout << "Training Loss (/sentence):    " << lossTrain/this->trainData.size() << std::endl;
+
   gettimeofday(&start, 0);
 
 #pragma omp parallel for num_threads(numThreads) schedule(dynamic) shared(perpDev, denom)
@@ -459,7 +485,7 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
 
   gettimeofday(&end, 0);
   //std::cout << "Evaluation time for this epoch: " << (end.tv_sec-start.tv_sec)/60.0 << " min." << std::endl;
-  std::cout << "Evaluation time for this epoch: " << ((end.tv_sec-start.tv_sec)*1000000+(end_tv_usec-start.tv_usec))/1000.0 << " ms." << std::endl;
+  std::cout << "Evaluation time for this epoch: " << ((end.tv_sec-start.tv_sec)*1000000+(end.tv_usec-start.tv_usec))/1000.0 << " ms." << std::endl;
   std::cout << "Development loss (/sentence): " << perpDev/this->devData.size() << std::endl;
   std::cout << "Development perplexity (global): " << exp(perpDev/denom) << std::endl;
 }
@@ -530,7 +556,7 @@ void EncDec::demo(const std::string& srcTrain, const std::string& tgtTrain, cons
   Real learningRate = 0.5;
   const int inputDim = 50;
   const int hiddenDim = 50;
-  const int miniBatchSize = 1;
+  const int miniBatchSize = 128; // <!!> modify this parameter to test
   const int numThread = 1;
   EncDec encdec(sourceVoc, targetVoc, trainData, devData, inputDim, hiddenDim);
   auto test = trainData[0]->src;
@@ -540,24 +566,31 @@ void EncDec::demo(const std::string& srcTrain, const std::string& tgtTrain, cons
   std::cout << "Source voc size: " << sourceVoc.tokenIndex.size() << std::endl;
   std::cout << "Target voc size: " << targetVoc.tokenIndex.size() << std::endl;
   
-  for (int i = 0; i < 100; ++i){
+  int break_point;
+
+	// std::cin >> break_point;
+
+  for (int i = 0; i < 3; ++i){
     if (i+1 >= 6){
       //learningRate *= 0.5;
     }
 
     std::cout << "\nEpoch " << i+1 << std::endl;
     encdec.trainOpenMP(learningRate, miniBatchSize, numThread);
-    std::cout << "### Greedy ###" << std::endl;
-    encdec.translate(test, 1, 100, 1);
-    std::cout << "### Beam search ###" << std::endl;
-    encdec.translate(test, 20, 100, 5);
+    // std::cout << "### Greedy ###" << std::endl;
+    // encdec.translate(test, 1, 100, 1);
+    // std::cout << "### Beam search ###" << std::endl;
+    // encdec.translate(test, 20, 100, 5);
 
     std::ostringstream oss;
     oss << "model." << i+1 << "itr.bin";
+	// 
+	// std::cin >> break_point;
     //encdec.save(oss.str());
   }
   
-  return;
+
+	return;
 
   encdec.load("model.1itr.bin");
 
