@@ -1,46 +1,32 @@
+################################
+#
+#	created by qiaoyc
+#
+################################
 CXX=g++
-#CXX=g++-6 # for Mac OS platform
-#CXX=g++-5 # for Mac OS platform, lower version
-#CXX=g++-4.9 # for Mac OS platform, lower version
 
-#EIGEN_LOCATION=$$HOME/local/eigen_new #Change this line to use Eigen
-EIGEN_LOCATION=./ 
+EIGNE_LOCATION=./
 BUILD_DIR=objs
-
-
+TARGET=
+TARGET+= n3lp
+TARGET+= n3lp_tc
 
 CXXFLAGS=
-#CXXFLAGS+=-Wall
-CXXFLAGS+=-O3
-CXXFLAGS+=-std=c++0x
-CXXFLAGS+=-lm
-CXXFLAGS+=-funroll-loops
-CXXFLAGS+=-march=native
-CXXFLAGS+=-m64
-CXXFLAGS+=-DEIGEN_DONT_PARALLELIZE
-CXXFLAGS+=-DEIGEN_NO_DEBUG
-CXXFLAGS+=-DEIGEN_NO_STATIC_ASSERT
-CXXFLAGS+=-I $(EIGEN_LOCATION)
-CXXFLAGS+=-fopenmp
 
-CXXFLAGS+=-ltcmalloc -L /home/qiao/user/lib
+LDFLAGS=
 
-#CXXFLAGS+=-ftree-vectorizer-verbose=1
+all: TARGET
 
-SRCS=$(shell ls *.cpp)
-OBJS=$(SRCS:.cpp=.o)
-
-PROGRAM=n3lp
-
-all : $(BUILD_DIR) $(patsubst %,$(BUILD_DIR)/%,$(PROGRAM))
+n3lp: $(BUILD_DIR) $(patsubst %,$(BUILD_DIR)%,n3lp)
 
 $(BUILD_DIR)/%.o : %.cpp
-	$(CXX) -c $(CXXFLAGS) -o $@ $<
+	$(CXX) -o $@ $< -c $(CXXFLAGS)
 
-$(BUILD_DIR)/$(PROGRAM) : $(patsubst %,$(BUILD_DIR)/%,$(OBJS))
-	$(CXX) $(CXXFLAGS) $(CXXLIBS) -o $@ $^
-	mv $(BUILD_DIR)/$(PROGRAM) ./
-	rm -f ?*~
+$(BUILD_DIR)/
+
+n3lp_tc:
 
 clean:
-	rm -f $(BUILD_DIR)/* $(PROGRAM) ?*~
+	rm -f $(BUILD_DIR)/* ?*~
+	rm -r n3lp
+	rm 

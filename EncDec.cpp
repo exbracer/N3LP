@@ -557,7 +557,7 @@ void EncDec::demo(const std::string& srcTrain, const std::string& tgtTrain, cons
   const int inputDim = 50;
   const int hiddenDim = 50;
   const int miniBatchSize = 128; // <!!> modify this parameter to test
-  const int numThread = 1;
+  const int numThread = 8;
   EncDec encdec(sourceVoc, targetVoc, trainData, devData, inputDim, hiddenDim);
   auto test = trainData[0]->src;
 
