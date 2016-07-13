@@ -615,8 +615,136 @@ void EncDec::demo(const std::string& srcTrain, const std::string& tgtTrain, cons
     }
     ofs << std::endl;
   }
-}
+} // end of demo
 
+// demo_qiao() written by qiaoyc, for convenient test on different arguments
+void EncDec::demo_qiao(const std::string& srcTrain, const std::string& tgtTrain, const std::string& srcDev, const std::string& tgtDev, const Real argsLearningRate, const int argsInputDim, const int argsHiddenDim, const int argsMiniBatchSize, const int argsNumThreads)
+{
+  const int threSource = 1;
+  const int threTarget = 1;
+  Vocabulary sourceVoc(srcTrain, threSource);
+  Vocabulary targetVoc(tgtTrain, threTarget);
+  std::vector<EncDec::Data*> trainData, devData;
+  std::ifstream ifsSrcTrain(srcTrain.c_str());
+  std::ifstream ifsTgtTrain(tgtTrain.c_str());
+  std::ifstream ifsSrcDev(srcDev.c_str());
+  std::ifstream ifsTgtDev(tgtDev.c_str());
+  std::vector<std::string> tokens;
+  int numLine = 0;
+
+  //training data
+  for (std::string line; std::getline(ifsSrcTrain, line); ){
+    trainData.push_back(new EncDec::Data);
+    Utils::split(line, tokens);
+
+    for (auto it = tokens.begin(); it != tokens.end(); ++it){
+      trainData.back()->src.push_back(sourceVoc.tokenIndex.count(*it) ? sourceVoc.tokenIndex.at(*it) : sourceVoc.unkIndex);
+    }
+
+    std::reverse(trainData.back()->src.begin(), trainData.back()->src.end());
+    trainData.back()->src.push_back(sourceVoc.eosIndex);
+  }
+
+  for (std::string line; std::getline(ifsTgtTrain, line); ){
+    Utils::split(line, tokens);
+
+    for (auto it = tokens.begin(); it != tokens.end(); ++it){
+      trainData[numLine]->tgt.push_back(targetVoc.tokenIndex.count(*it) ? targetVoc.tokenIndex.at(*it) : targetVoc.unkIndex);
+    }
+
+    trainData[numLine]->tgt.push_back(targetVoc.eosIndex);
+    ++numLine;
+  }
+
+  //development data
+  numLine = 0;
+
+  for (std::string line; std::getline(ifsSrcDev, line); ){
+    devData.push_back(new EncDec::Data);
+    Utils::split(line, tokens);
+
+    for (auto it = tokens.begin(); it != tokens.end(); ++it){
+      devData.back()->src.push_back(sourceVoc.tokenIndex.count(*it) ? sourceVoc.tokenIndex.at(*it) : sourceVoc.unkIndex);
+    }
+
+    std::reverse(devData.back()->src.begin(), devData.back()->src.end());
+    devData.back()->src.push_back(sourceVoc.eosIndex);
+  }
+
+  for (std::string line; std::getline(ifsTgtDev, line); ){
+    Utils::split(line, tokens);
+
+    for (auto it = tokens.begin(); it != tokens.end(); ++it){
+      devData[numLine]->tgt.push_back(targetVoc.tokenIndex.count(*it) ? targetVoc.tokenIndex.at(*it) : targetVoc.unkIndex);
+    }
+
+    devData[numLine]->tgt.push_back(targetVoc.eosIndex);
+    ++numLine;
+  }
+
+  Real learningRate = argsLearningRate;
+  const int inputDim = argsInputDim;
+  const int hiddenDim = argsHiddenDim;
+  const int miniBatchSize = argsMiniBatchSize; // <!!> modify this parameter to test
+  const int numThread = argsNumThreads;
+  EncDec encdec(sourceVoc, targetVoc, trainData, devData, inputDim, hiddenDim);
+  auto test = trainData[0]->src;
+
+  std::cout << "# of training data:    " << trainData.size() << std::endl;
+  std::cout << "# of development data: " << devData.size() << std::endl;
+  std::cout << "Source voc size: " << sourceVoc.tokenIndex.size() << std::endl;
+  std::cout << "Target voc size: " << targetVoc.tokenIndex.size() << std::endl;
+  
+  int break_point;
+
+	// std::cin >> break_point;
+
+  for (int i = 0; i < 3; ++i){
+    if (i+1 >= 6){
+      //learningRate *= 0.5;
+    }
+
+    std::cout << "\nEpoch " << i+1 << std::endl;
+    encdec.trainOpenMP(learningRate, miniBatchSize, numThread);
+    // std::cout << "### Greedy ###" << std::endl;
+    // encdec.translate(test, 1, 100, 1);
+    // std::cout << "### Beam search ###" << std::endl;
+    // encdec.translate(test, 20, 100, 5);
+
+    std::ostringstream oss;
+    oss << "model." << i+1 << "itr.bin";
+	// 
+	// std::cin >> break_point;
+    //encdec.save(oss.str());
+  }
+  
+
+	return;
+
+  encdec.load("model.1itr.bin");
+
+  struct timeval start, end;
+  
+  //translation
+  std::vector<std::vector<int> > output(encdec.devData.size());
+  gettimeofday(&start, 0);
+#pragma omp parallel for num_threads(numThread) schedule(dynamic) shared(output, encdec)
+  for (int i = 0; i < (int)encdec.devData.size(); ++i){
+    encdec.translate(output[i], encdec.devData[i]->src, 20, 100);
+  }
+
+  gettimeofday(&end, 0);
+  std::cout << "Translation time: " << (end.tv_sec-start.tv_sec)/60.0 << " min." << std::endl;
+ 
+  std::ofstream ofs("translation.txt");
+  
+  for (auto it = output.begin(); it != output.end(); ++it){
+    for (auto it2 = it->begin(); it2 != it->end(); ++it2){
+      ofs << encdec.targetVoc.tokenList[(*it2)]->str << " ";
+    }
+    ofs << std::endl;
+  }
+} // end of demo_qiao()
 void EncDec::save(const std::string& fileName){
   std::ofstream ofs(fileName.c_str(), std::ios::out|std::ios::binary);
 
