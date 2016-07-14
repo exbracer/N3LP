@@ -38,7 +38,7 @@ public:
 	}
 	int readInArgs(int argc, char ** argv);
 private:
-	void genDatasetPath();
+	void genDatasetPath(std::string arg);
 };
 
 int ArgsTable::readInArgs(int argc, char ** argv)
@@ -55,7 +55,7 @@ int ArgsTable::readInArgs(int argc, char ** argv)
 
 		if (arg.compare("-d") == 0) 
 		{
-			genDatasetPath();
+			genDatasetPath(val);
 			i ++;
 			continue;
 		}
@@ -100,8 +100,9 @@ int ArgsTable::readInArgs(int argc, char ** argv)
 	return 0;
 }
 
-void ArgsTable::genDatasetPath()
+void ArgsTable::genDatasetPath(std::string dir)
 {
+	dataset_dir = dir;
 	if (dataset_dir.back() == '/')
 	{
 		// val = val.Substring(0, val.length()-1);
