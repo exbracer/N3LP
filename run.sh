@@ -15,9 +15,13 @@ RESULT_LOCATION=./result/
 INPUT_DIMENTION=50
 HIDDEN_DIMENTION=50
 MIN_I=0
-MAX_I=0
-MIN_J=2
-MAX_J=2
+MAX_I=3
+MIN_J=0
+MAX_J=4
+
+NUMA=numa_
+NUMACTL=numactl 
+NUMFLAG=--interleave=all
 
 LOG_FILE=$RESULT_LOCATION
 LOG_FILE+=runtime.log
@@ -31,7 +35,7 @@ EXECUTABLE_FILE=(
 	n3lp_tc
 )
 
-
+echo $NUMACTL
 echo START!!!
 
 for elem in ${EXECUTABLE_FILE[*]}
@@ -44,14 +48,14 @@ do
 		do
 			miniBatchSize=$[128*2**$i]
 			numThreads=$[2**$j]
-			./$elem -d $DATASET_LOCATION -i $INPUT_DIMENTION -h $HIDDEN_DIMENTION -m $miniBatchSize -n $numThreads > $LOG_FILE 
+			$NUMACTL $NUMFLAG ./$elem -d $DATASET_LOCATION -i $INPUT_DIMENTION -h $HIDDEN_DIMENTION -m $miniBatchSize -n $numThreads > $LOG_FILE 
 			cat $LOG_FILE
 			cat $LOG_FILE | sed -n '7,8p' >> $STATIC_FILE
 			cat $LOG_FILE | grep -n 'ms' | sed 's/\(.*\): \(.*\) ms./\2/g' >> $STATIC_FILE
 			echo "" >> $STATIC_FILE
 		done
 	done
-	mv $STATIC_FILE $RESULT_LOCATION$elem$STATIC_FILE
+	mv $STATIC_FILE $RESULT_LOCATION$NUMA$elem$STATIC_FILE
 done
 
 
