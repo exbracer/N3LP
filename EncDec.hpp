@@ -55,13 +55,16 @@ public:
   LSTM::Grad lstmTgtGrad;
   SoftMax::Grad softmaxGrad;
 
+  // <??> PART I: this part may be the bottleneck
+  // <??> PART I: BEGIN
   void init(){
-    this->sourceEmbed.clear();
-    this->targetEmbed.clear();
-    this->lstmSrcGrad.init();
-    this->lstmTgtGrad.init();
-    this->softmaxGrad.init();
+    this->sourceEmbed.clear(); // destructor are called, all the elements in the unordered_map are dropped
+    this->targetEmbed.clear(); // destructor are called, all the elements in the unordered_map are dropped
+    this->lstmSrcGrad.init(); // all the matrix and vector set to zero
+    this->lstmTgtGrad.init(); // all the matrix and vector set to zero
+    this->softmaxGrad.init(); // all the matrix and vector set to zero
   }
+  // <??> PART I: END
 
   Real norm(){
     Real res = this->lstmSrcGrad.norm()+this->lstmTgtGrad.norm()+this->softmaxGrad.norm();

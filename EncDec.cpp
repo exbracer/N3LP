@@ -38,8 +38,8 @@ EncDec::EncDec(Vocabulary& sourceVoc_, Vocabulary& targetVoc_, std::vector<EncDe
 }
 
 void EncDec::encode(const std::vector<int>& src, std::vector<LSTM::State*>& encState){
-  encState[0]->h = this->zeros;
-  encState[0]->c = this->zeros;
+  encState[0]->h = this->zeros; // <??> can be faster by using setZeros?
+  encState[0]->c = this->zeros; // <??> can be faster by using setZeros?
 
   for (int i = 0; i < (int)src.size(); ++i){
     this->enc.forward(this->sourceEmbed.col(src[i]), encState[i], encState[i+1]);
@@ -307,7 +307,7 @@ void EncDec::gradCheck(EncDec::Data* data, std::vector<LSTM::State*>& encState, 
 }
 
 void EncDec::train(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss){
-  VecD targetDist;
+  VecD targetDist; // <??> created in stack of this thread
 
   loss = 0.0;
   this->encode(data->src, encState);
@@ -321,39 +321,48 @@ void EncDec::train(EncDec::Data* data, std::vector<LSTM::State*>& encState, std:
       this->dec.forward(this->targetEmbed.col(data->tgt[i-1]), decState[i-1], decState[i]);
     }
 
-    this->softmax.calcDist(decState[i]->h, targetDist);
-    loss += this->softmax.calcLoss(targetDist, data->tgt[i]);
+    // <??> PART S: THIS PART MAY BE THE BOTTLENEC
+    // <??> PART S: BEGIN
+    this->softmax.calcDist(decState[i]->h, targetDist); // <??> are each thead competing for softmax
+    loss += this->softmax.calcLoss(targetDist, data->tgt[i]); // <??> same question as above
     this->softmax.backward(decState[i]->h, targetDist, data->tgt[i], decState[i]->delh, grad.softmaxGrad);
+    // <??> PART S: END
   }
 
-  decState[data->tgt.size()-1]->delc = this->zeros;
+  decState[data->tgt.size()-1]->delc = this->zeros; // <??> can be faster by using setZeros?
 
   for (int i = data->tgt.size()-1; i >= 1; --i){
-    decState[i-1]->delc = this->zeros;
+    decState[i-1]->delc = this->zeros; // <??> can be faster by using setZeros?
     this->dec.backward(decState[i-1], decState[i], grad.lstmTgtGrad, this->targetEmbed.col(data->tgt[i-1]));
 
+    // <??> PART A: THIS PART MAY BE THE BOTTLENECK, create new member
+    // <??> PART A: BEGIN
     if (grad.targetEmbed.count(data->tgt[i-1])){
       grad.targetEmbed.at(data->tgt[i-1]) += decState[i]->delx;
     }
     else {
       grad.targetEmbed[data->tgt[i-1]] = decState[i]->delx;
     }
+    // <??> PART A: END
   }
   
   encState[data->src.size()]->delc = decState[0]->delc;
   encState[data->src.size()]->delh = decState[0]->delh;
 
   for (int i = data->src.size(); i >= 1; --i){
-    encState[i-1]->delh = this->zeros;
-    encState[i-1]->delc = this->zeros;
+    encState[i-1]->delh = this->zeros; // <??> can be faster by using setZeros?
+    encState[i-1]->delc = this->zeros; // <??> can be faster bu using setZeros?
     this->enc.backward(encState[i-1], encState[i], grad.lstmSrcGrad, this->sourceEmbed.col(data->src[i-1]));
 
+    // <??> PART B: THIS PART MAY BE THE BOTTLENECK
+    // <??> PART B: BEGIN
     if (grad.sourceEmbed.count(data->src[i-1])){
       grad.sourceEmbed.at(data->src[i-1]) += encState[i]->delx;
     }
     else {
       grad.sourceEmbed[data->src[i-1]] = encState[i]->delx;
     }
+    // <??> PART B: END
   }
 }
 
@@ -476,7 +485,7 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
     grad.init();
 	gettimeofday(&k_end_1, NULL);
 	k_time_1 += ((k_end_1.tv_sec-k_start_1.tv_sec)*1000000+(k_end_1.tv_usec-k_start_1.tv_usec))/1000.0;
-  }
+  } // end of for (auto it = miniBatch.begin(); it != miniBatch.end(); ++it)
 
   std::cout << std::endl;
   gettimeofday(&end, 0);
