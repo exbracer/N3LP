@@ -403,22 +403,46 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
 	
 	//this->rnd.shuffle(miniBatch);
   this->rnd.shuffle(this->trainData); // <??> this part can be faster??
+
+	// add time recorder here
+	struct timeval time_rec_start[numThreads];
+	struct timeval time_rec_end[numThreads];
+	__time_t sec_start[numThreads][trainData.size()];
+	__time_t sec_end[numThreads][trainData.size()];
+	__suseconds_t usec_start[numThreads][trainData.size()];
+	__suseconds_t usec_end[numThreads][trainData.size()];
+	int iter_counter[numThreads];
+
+	for (int ii = 0; ii < numThreads; ii ++)
+	{
+		iter_counter[ii] = -1;
+	}
+
   gettimeofday(&start, 0);
 
   int count = 0;
   k_time = 0.0;
   k_time_1 = 0.0;
   k_time_2 = 0.0;
+
+
   for (auto it = miniBatch.begin(); it != miniBatch.end(); ++it){
     //  std::cout << "\r" << "Progress: " << ++count << "/" << miniBatch.size() << " mini batches" << std::flush;
 	
-	  gettimeofday(&k_start, NULL);
+	  gettimeofday(&k_start, NULL); 
 
 #pragma omp parallel for num_threads(numThreads) schedule(dynamic) shared(args)
     for (int i = it->first; i <= it->second; ++i){
       int id = omp_get_thread_num();
       Real loss;
+	  iter_counter[id] ++;
+	  gettimeofday(&(time_rec_start[id]), NULL);
       this->train(this->trainData[i], args[id]->encState, args[id]->decState, args[id]->grad, loss);
+	  gettimeofday(&(time_rec_end[id]), NULL);
+	  sec_start[id][iter_counter[id]] = time_rec_start[id].tv_sec;
+	  usec_start[id][iter_counter[id]] = time_rec_start[id].tv_usec;
+	  sec_end[id][iter_counter[id]] = time_rec_end[id].tv_sec;
+	  usec_end[id][iter_counter[id]] = time_rec_end[id].tv_usec;
       args[id]->loss += loss;
     }
 
@@ -462,6 +486,29 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
   std::cout << "Time for seq part: " << k_time_1 << " ms." << std::endl;
 
   std::cout << "Training Loss (/sentence):    " << lossTrain/this->trainData.size() << std::endl;
+	int sum_iter_counter = 0;
+	for (int ii = 0; ii < numThreads; ii ++)
+	{
+		std::cout << "thread id  = " << ii << ", count = " << iter_counter[ii] << std::endl;
+		sum_iter_counter += iter_counter[ii];
+	}
+	std::cout << "sum = " << sum_iter_counter << std::endl;
+	// here for record into file
+	std::ofstream fout_start("time_rec_start.log");
+	std::ofstream fout_end("time_rec_end.log");
+	
+	for (int ii = 0; ii < numThreads; ii ++)
+	{
+		for (int jj = 0; jj <= iter_counter[ii]; jj ++)
+		{
+			double start_time = (double)((sec_start[ii][jj] - start.tv_sec) * 1000000.0 + (usec_start[ii][jj]-start.tv_usec))/1000.0;
+			double end_time = (double)((sec_end[ii][jj] - start.tv_sec) * 1000000.0 + (usec_end[ii][jj]-start.tv_usec))/1000.0;
+			fout_start << ii << " " << start_time << std::endl;
+			fout_end << ii << " " << end_time << std::endl;
+		}
+	}
+	fout_start.close();
+	fout_end.close();
 
   gettimeofday(&start, 0);
 
