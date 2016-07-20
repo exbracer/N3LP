@@ -29,6 +29,7 @@ public:
   std::vector<std::vector<LSTM::State*> > encStateDev, decStateDev;
 
   void encode(const std::vector<int>& src, std::vector<LSTM::State*>& encState);
+  void encode_qiao(const std::vector<int>& src, std::vector<LSTM::State*>& encState);
   void translate(const std::vector<int>& src, const int beam = 1, const int maxLength = 100, const int showNum = 1);
   bool translate(std::vector<int>& output, const std::vector<int>& src, const int beam = 1, const int maxLength = 100);
   Real calcLoss(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState);
@@ -36,6 +37,7 @@ public:
   void gradCheck(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad);
   void gradCheck(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, MatD& param, const MatD& grad);
   void train(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss);
+  void train_qiao_1(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss);
   void trainOpenMP(const Real learningRate, const int miniBatchSize = 1, const int numThreads = 1);
   void save(const std::string& fileName);
   void load(const std::string& fileName);
@@ -63,6 +65,23 @@ public:
     this->lstmSrcGrad.init(); // all the matrix and vector set to zero
     this->lstmTgtGrad.init(); // all the matrix and vector set to zero
     this->softmaxGrad.init(); // all the matrix and vector set to zero
+  }
+  void init_qiao()
+  {
+	  // just set all the elements in sourceEmbed to 0
+	  for (auto it = this->sourceEmbed.begin(); it != this->sourceEmbed.end(); ++it)
+	  {
+		  it->second.setZero();
+	  }
+	  // just set all the elements in targetEmbed to 0
+	  for (auto it = this->targetEmbed.begin(); it != this->targetEmbed.end(); ++it)
+	  {
+		  it->second.setZero();
+	  }
+
+	  this->lstmSrcGrad.init();
+	  this->lstmTgtGrad.init();
+	  this->softmaxGrad.init();
   }
   // <??> PART I: END
 

@@ -15,13 +15,17 @@ RESULT_LOCATION=./result/
 INPUT_DIMENTION=50
 HIDDEN_DIMENTION=50
 MIN_I=0
-MAX_I=3
-MIN_J=0
+MAX_I=0
+MIN_J=4
 MAX_J=4
 
-NUMA=numa_
-NUMACTL=numactl 
-NUMFLAG=--interleave=all
+
+NUMA=
+NUMACTL=
+NUMAFLAG=
+#NUMA+=numa_
+#NUMACTL+=numactl 
+#NUMFLAG+=--interleave=all
 
 LOG_FILE=$RESULT_LOCATION
 LOG_FILE+=runtime.log

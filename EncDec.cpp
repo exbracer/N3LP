@@ -38,11 +38,23 @@ EncDec::EncDec(Vocabulary& sourceVoc_, Vocabulary& targetVoc_, std::vector<EncDe
 }
 
 void EncDec::encode(const std::vector<int>& src, std::vector<LSTM::State*>& encState){
-  encState[0]->h = this->zeros; // <??> can be faster by using setZeros?
-  encState[0]->c = this->zeros; // <??> can be faster by using setZeros?
+	encState[0]->h = this->zeros; // <??> can be faster by using setZeros?
+	encState[0]->c = this->zeros; // <??> can be faster by using setZeros?
+ 
+	 for (int i = 0; i < (int)src.size(); ++i){
+	//std::cout << "i = " << i << std::endl;
+	  this->enc.forward(this->sourceEmbed.col(src[i]), encState[i], encState[i+1]);
+  }
+}
+
+
+void EncDec::encode_qiao(const std::vector<int>& src, std::vector<LSTM::State*>& encState){
+	encState[0]->h.setZero();
+	encState[0]->c.setZero();
 
   for (int i = 0; i < (int)src.size(); ++i){
-    this->enc.forward(this->sourceEmbed.col(src[i]), encState[i], encState[i+1]);
+	//std::cout << "i = " << i << std::endl;
+	  this->enc.forward(this->sourceEmbed.col(src[i]), encState[i], encState[i+1]);
   }
 }
 
@@ -310,8 +322,8 @@ void EncDec::train(EncDec::Data* data, std::vector<LSTM::State*>& encState, std:
   VecD targetDist; // <??> created in stack of this thread
 
   loss = 0.0;
-  this->encode(data->src, encState);
-
+  this->encode_qiao(data->src, encState);
+  // std::cout << "after encode" << std::endl;
   for (int i = 0; i < (int)data->tgt.size(); ++i){
     if (i == 0){
       decState[0]->h = encState[data->src.size()]->h;
@@ -329,11 +341,12 @@ void EncDec::train(EncDec::Data* data, std::vector<LSTM::State*>& encState, std:
     // <??> PART S: END
   }
 
-  decState[data->tgt.size()-1]->delc = this->zeros; // <??> can be faster by using setZeros?
+	decState[data->tgt.size()-1]->delc = this->zeros; // <??> can be faster by using setZeros?
+
 
   for (int i = data->tgt.size()-1; i >= 1; --i){
     decState[i-1]->delc = this->zeros; // <??> can be faster by using setZeros?
-    this->dec.backward(decState[i-1], decState[i], grad.lstmTgtGrad, this->targetEmbed.col(data->tgt[i-1]));
+	this->dec.backward(decState[i-1], decState[i], grad.lstmTgtGrad, this->targetEmbed.col(data->tgt[i-1]));
 
     // <??> PART A: THIS PART MAY BE THE BOTTLENECK, create new member
     // <??> PART A: BEGIN
@@ -350,9 +363,10 @@ void EncDec::train(EncDec::Data* data, std::vector<LSTM::State*>& encState, std:
   encState[data->src.size()]->delh = decState[0]->delh;
 
   for (int i = data->src.size(); i >= 1; --i){
-    encState[i-1]->delh = this->zeros; // <??> can be faster by using setZeros?
-    encState[i-1]->delc = this->zeros; // <??> can be faster bu using setZeros?
-    this->enc.backward(encState[i-1], encState[i], grad.lstmSrcGrad, this->sourceEmbed.col(data->src[i-1]));
+		encState[i-1]->delh = this->zeros; // <??> can be faster by using setZeros?
+		encState[i-1]->delc = this->zeros; // <??> can be faster bu using setZeros?
+
+	  this->enc.backward(encState[i-1], encState[i], grad.lstmSrcGrad, this->sourceEmbed.col(data->src[i-1]));
 
     // <??> PART B: THIS PART MAY BE THE BOTTLENECK
     // <??> PART B: BEGIN
@@ -366,6 +380,72 @@ void EncDec::train(EncDec::Data* data, std::vector<LSTM::State*>& encState, std:
   }
 }
 
+void EncDec::train_qiao_1(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss){
+  VecD targetDist; // <??> created in stack of this thread
+
+  loss = 0.0;
+  this->encode_qiao(data->src, encState);
+  // std::cout << "after encode" << std::endl;
+  for (int i = 0; i < (int)data->tgt.size(); ++i){
+    if (i == 0){
+      decState[0]->h = encState[data->src.size()]->h;
+      decState[0]->c = encState[data->src.size()]->c;
+    }
+    else {
+      this->dec.forward(this->targetEmbed.col(data->tgt[i-1]), decState[i-1], decState[i]);
+    }
+
+    // <??> PART S: THIS PART MAY BE THE BOTTLENEC
+    // <??> PART S: BEGIN
+    this->softmax.calcDist(decState[i]->h, targetDist); // <??> are each thead competing for softmax
+    loss += this->softmax.calcLoss(targetDist, data->tgt[i]); // <??> same question as above
+    this->softmax.backward(decState[i]->h, targetDist, data->tgt[i], decState[i]->delh, grad.softmaxGrad);
+    // <??> PART S: END
+  }
+
+  //decState[data->tgt.size()-1]->delc = this->zeros; // <??> can be faster by using setZeros?
+	decState[data->tgt.size()-1]->delc.setZero();
+
+
+  for (int i = data->tgt.size()-1; i >= 1; --i){
+    // decState[i-1]->delc = this->zeros; // <??> can be faster by using setZeros?
+    decState[i-1]->delc.setZero();
+	this->dec.backward(decState[i-1], decState[i], grad.lstmTgtGrad, this->targetEmbed.col(data->tgt[i-1]));
+
+    // <??> PART A: THIS PART MAY BE THE BOTTLENECK, create new member
+    // <??> PART A: BEGIN
+    if (grad.targetEmbed.count(data->tgt[i-1])){
+      grad.targetEmbed.at(data->tgt[i-1]) += decState[i]->delx;
+    }
+    else {
+      grad.targetEmbed[data->tgt[i-1]] = decState[i]->delx;
+    }
+    // <??> PART A: END
+  }
+  
+  encState[data->src.size()]->delc = decState[0]->delc;
+  encState[data->src.size()]->delh = decState[0]->delh;
+
+  for (int i = data->src.size(); i >= 1; --i){
+    // encState[i-1]->delh = this->zeros; // <??> can be faster by using setZeros?
+    // encState[i-1]->delc = this->zeros; // <??> can be faster bu using setZeros?
+
+	  encState[i-1]->delh.setZero();
+	  encState[i-1]->delc.setZero();
+
+	  this->enc.backward(encState[i-1], encState[i], grad.lstmSrcGrad, this->sourceEmbed.col(data->src[i-1]));
+
+    // <??> PART B: THIS PART MAY BE THE BOTTLENECK
+    // <??> PART B: BEGIN
+    if (grad.sourceEmbed.count(data->src[i-1])){
+      grad.sourceEmbed.at(data->src[i-1]) += encState[i]->delx;
+    }
+    else {
+      grad.sourceEmbed[data->src[i-1]] = encState[i]->delx;
+    }
+    // <??> PART B: END
+  }
+}
 void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const int numThreads){
   static std::vector<EncDec::ThreadArg*> args;
   static std::vector<std::pair<int, int> > miniBatch;
@@ -384,12 +464,13 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
 	Real k_time_2 = 0.0;
 
   if (args.empty()){
-	std::cout << "hell0'" << std::endl;
 	  for (int i = 0; i < numThreads; ++i){
       args.push_back(new EncDec::ThreadArg(*this));
 
       for (int j = 0; j < 200; ++j){    //<??> why j < 200 here
 	args[i]->encState.push_back(new LSTM::State);
+	args[i]->encState[0]->h = this->zeros;
+	args[i]->encState[0]->c = this->zeros;
 	args[i]->decState.push_back(new LSTM::State);
       }
     }
@@ -442,8 +523,8 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
 
 #pragma omp parallel for num_threads(numThreads) schedule(dynamic) shared(args)
     for (int i = it->first; i <= it->second; ++i){
-      int id = omp_get_thread_num();
-      Real loss;
+		int id = omp_get_thread_num();
+		Real loss;
 	  iter_counter[id] ++;
 	  gettimeofday(&(time_rec_start[id]), NULL);
       this->train(this->trainData[i], args[id]->encState, args[id]->decState, args[id]->grad, loss);
@@ -460,7 +541,8 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
     gettimeofday(&k_start_1, NULL);
 	for (int id = 0; id < numThreads; ++id){
       grad += args[id]->grad;
-      args[id]->grad.init();
+		 //args[id]->grad.init();
+	  args[id]->grad.init_qiao();
       lossTrain += args[id]->loss;
       args[id]->loss = 0.0;
     }
@@ -518,9 +600,8 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
 	}
 	fout_start.close();
 	fout_end.close();
-
   gettimeofday(&start, 0);
-
+	
 #pragma omp parallel for num_threads(numThreads) schedule(dynamic) shared(perpDev, denom)
   for (int i = 0; i < (int)this->devData.size(); ++i){
     Real perp = this->calcLoss(this->devData[i], this->encStateDev[i], this->decStateDev[i]);
