@@ -514,7 +514,9 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
   k_time = 0.0;
   k_time_1 = 0.0;
   k_time_2 = 0.0;
-
+	
+  int max_batch_count = 2;
+  int batch_count;
 
   for (auto it = miniBatch.begin(); it != miniBatch.end(); ++it){
     //  std::cout << "\r" << "Progress: " << ++count << "/" << miniBatch.size() << " mini batches" << std::flush;
