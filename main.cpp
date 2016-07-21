@@ -148,9 +148,11 @@ int main(int argc, char** argv){
 	std::cout << train_tgt << std::endl;
 	std::cout << test_src << std::endl;
 	std::cout << test_tgt << std::endl;
-	std::cout << learningRate << std::endl;
-	std::cout << miniBatchSize <<  std::endl;
-	std::cout << numThreads << std::endl;
+	std::cout << "learning rate = " << learningRate << std::endl;
+	std::cout << "input dimention = " << inputDim << std::endl;
+	std::cout << "hidden dimention = " << hiddenDim << std::endl;
+	std::cout << "miniBatchSize = " << miniBatchSize <<  std::endl;
+	std::cout << "number of threads = " << numThreads << std::endl;
 	EncDec::demo_qiao(train_src, train_tgt, train_src, train_tgt, learningRate,
 			inputDim, hiddenDim, miniBatchSize, numThreads);
 

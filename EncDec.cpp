@@ -455,7 +455,7 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
 	Real gradNorm, lr = learningRate;
 	const Real clipThreshold = 3.0;
 	struct timeval start, end;
-
+	std::cout << "size = " << sizeof(Real) << std::endl;
 	// 
 	struct timeval k_start, k_end;
 	struct timeval k_start_1, k_end_1;
@@ -486,10 +486,10 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
       	grad.softmaxGrad = SoftMax::Grad(this->softmax);
 
     //std::sort(this->trainData.begin(), this->trainData.end(), sort_pred());
-      }
+	}
 
-      std::cout << "number of miniBatch = " << miniBatch.size() << std::endl;
-      std::cout << "first pair is " << miniBatch[0].first << " and " << miniBatch[0].second << std::endl;
+    std::cout << "number of miniBatch = " << miniBatch.size() << std::endl;
+    std::cout << "first pair is " << miniBatch[0].first << " and " << miniBatch[0].second << std::endl;
 
 	//this->rnd.shuffle(miniBatch);
   	this->rnd.shuffle(this->trainData); // <??> this part can be faster??
@@ -516,10 +516,16 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
   	k_time_2 = 0.0;
 
   	int max_batch_count = 2;
-  	int batch_count;
+  	int batch_count = 0;
 
   	for (auto it = miniBatch.begin(); it != miniBatch.end(); ++it){
     //  std::cout << "\r" << "Progress: " << ++count << "/" << miniBatch.size() << " mini batches" << std::flush;
+		
+		batch_count ++;
+		if (batch_count >= 2)
+		{
+			break;
+		}
 
   		gettimeofday(&k_start, NULL); 
 
@@ -543,8 +549,8 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
   		gettimeofday(&k_start_1, NULL);
   		for (int id = 0; id < numThreads; ++id){
   			grad += args[id]->grad;
-		 //args[id]->grad.init();
-  			args[id]->grad.init_qiao();
+			args[id]->grad.init();
+  			//args[id]->grad.init_qiao();
   			lossTrain += args[id]->loss;
   			args[id]->loss = 0.0;
   		}
@@ -602,6 +608,10 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
   	}
   	fout_start.close();
   	fout_end.close();
+
+	// for a quick test
+	return;
+
   	gettimeofday(&start, 0);
 
 #pragma omp parallel for num_threads(numThreads) schedule(dynamic) shared(perpDev, denom)
@@ -627,6 +637,8 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
   	std::cout << "Evaluation time for this epoch: " << ((end.tv_sec-start.tv_sec)*1000000+(end.tv_usec-start.tv_usec))/1000.0 << " ms." << std::endl;
   	std::cout << "Development loss (/sentence): " << perpDev/this->devData.size() << std::endl;
   	std::cout << "Development perplexity (global): " << exp(perpDev/denom) << std::endl;
+
+	return;
 }
 
 void EncDec::demo(const std::string& srcTrain, const std::string& tgtTrain, const std::string& srcDev, const std::string& tgtDev){
@@ -771,7 +783,7 @@ void EncDec::demo_qiao(const std::string& srcTrain, const std::string& tgtTrain,
 	std::vector<std::string> tokens;
 	int numLine = 0;
 
-  //training data
+	//training data
 	for (std::string line; std::getline(ifsSrcTrain, line); ){
 		trainData.push_back(new EncDec::Data);
 		Utils::split(line, tokens);
@@ -824,45 +836,45 @@ void EncDec::demo_qiao(const std::string& srcTrain, const std::string& tgtTrain,
 	Real learningRate = argsLearningRate;
 	const int inputDim = argsInputDim;
 	const int hiddenDim = argsHiddenDim;
-  const int miniBatchSize = argsMiniBatchSize; // <!!> modify this parameter to test
-  const int numThread = argsNumThreads;
-  EncDec encdec(sourceVoc, targetVoc, trainData, devData, inputDim, hiddenDim);
-  auto test = trainData[0]->src;
+	const int miniBatchSize = argsMiniBatchSize; // <!!> modify this parameter to test
+	const int numThread = argsNumThreads;
+	EncDec encdec(sourceVoc, targetVoc, trainData, devData, inputDim, hiddenDim);
+	auto test = trainData[0]->src;
 
-  std::cout << "# of training data:    " << trainData.size() << std::endl;
-  std::cout << "# of development data: " << devData.size() << std::endl;
-  std::cout << "Source voc size: " << sourceVoc.tokenIndex.size() << std::endl;
-  std::cout << "Target voc size: " << targetVoc.tokenIndex.size() << std::endl;
+	std::cout << "# of training data:    " << trainData.size() << std::endl;
+	std::cout << "# of development data: " << devData.size() << std::endl;
+	std::cout << "Source voc size: " << sourceVoc.tokenIndex.size() << std::endl;
+	std::cout << "Target voc size: " << targetVoc.tokenIndex.size() << std::endl;
   
-  int break_point;
+	int break_point;
 
 	// std::cin >> break_point;
 
-  for (int i = 0; i < 3; ++i){
-  	if (i+1 >= 6){
-      //learningRate *= 0.5;
-  	}
+	for (int i = 0; i < 3; ++i){
+		if (i+1 >= 6){
+		//learningRate *= 0.5;
+		}
 
-  	std::cout << "\nEpoch " << i+1 << std::endl;
-  	encdec.trainOpenMP(learningRate, miniBatchSize, numThread);
-    // std::cout << "### Greedy ###" << std::endl;
-    // encdec.translate(test, 1, 100, 1);
-    // std::cout << "### Beam search ###" << std::endl;
-    // encdec.translate(test, 20, 100, 5);
+		std::cout << "\nEpoch " << i+1 << std::endl;
+		encdec.trainOpenMP(learningRate, miniBatchSize, numThread);
+		// std::cout << "### Greedy ###" << std::endl;
+		// encdec.translate(test, 1, 100, 1);
+		// std::cout << "### Beam search ###" << std::endl;
+		// encdec.translate(test, 20, 100, 5);
 
-  	std::ostringstream oss;
-  	oss << "model." << i+1 << "itr.bin";
-	// 
-	// std::cin >> break_point;
-    //encdec.save(oss.str());
-  }
+		std::ostringstream oss;
+		oss << "model." << i+1 << "itr.bin";
+		// 
+		// std::cin >> break_point;
+		//encdec.save(oss.str());
+	}
 
 
-  return;
+	return;
 
-  encdec.load("model.1itr.bin");
+	encdec.load("model.1itr.bin");
 
-  struct timeval start, end;
+	struct timeval start, end;
 
   //translation
   std::vector<std::vector<int> > output(encdec.devData.size());
