@@ -101,6 +101,10 @@ hiddenDim=$HIDDEN_DIMENTION
 miniBatchSize=$MINIBATCH_SIZE
 numThreads=$NUM_THREADS
 
+START_LOG=time_rec_start.log
+END_LOG=time_rec_end.log
+
+
 echo START!!
 
 for elem in ${EXECUTABLE_FILE[*]}
@@ -114,5 +118,6 @@ do
 	cat $LOG_FILE | grep -n 'ms' | sed 's/\(.*\): \(.*\) ms./\2/g' >> $STATISTIC_FILE
 	echo "" >> $STATISTIC_FILE
 	mv $STATISTIC_FILE $RESULT_LOCATION$NUMA$elem$UNDERLINE$numThreads$UNDERLINE$STATISTIC_FILE
-
+	mv ./$START_LOG $RESULT_LOCATION$elem$UNDERLINE$DATASET_SIZE$UNDERLINE$miniBatchSize$UNDERLINE$numThreads$UNDERLINE$START_LOG
+	mv ./$END_LOG $RESULT_LOCATION$elem$UNDERLINE$DATASET_SIZE$UNDERLINE$miniBatchSize$UNDERLINE$numThreads$UNDERLINE$END_LOG
 done

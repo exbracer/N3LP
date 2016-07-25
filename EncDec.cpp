@@ -321,7 +321,7 @@ void EncDec::train(EncDec::Data* data, std::vector<LSTM::State*>& encState, std:
   	VecD targetDist; // <??> created in stack of this thread
 
   	loss = 0.0;
-  	this->encode_qiao(data->src, encState);
+  	this->encode(data->src, encState);
   	// std::cout << "after encode" << std::endl;
   	for (int i = 0; i < (int)data->tgt.size(); ++i)
   	{
@@ -515,14 +515,14 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
   	k_time_1 = 0.0;
   	k_time_2 = 0.0;
 
-  	int max_batch_count = 2;
+  	int max_batch_count = 4;
   	int batch_count = 0;
 
   	for (auto it = miniBatch.begin(); it != miniBatch.end(); ++it){
     //  std::cout << "\r" << "Progress: " << ++count << "/" << miniBatch.size() << " mini batches" << std::flush;
 		
 		batch_count ++;
-		if (batch_count >= 2)
+		if (batch_count > max_batch_count)
 		{
 			break;
 		}
@@ -535,8 +535,10 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
   			Real loss;
   			iter_counter[id] ++;
   			gettimeofday(&(time_rec_start[id]), NULL);
-  			this->train_qiao_1(this->trainData[i], args[id]->encState, args[id]->decState, args[id]->grad, loss);
-  			gettimeofday(&(time_rec_end[id]), NULL);
+			// the main training function
+  			this->train(this->trainData[i], args[id]->encState, args[id]->decState, args[id]->grad, loss);
+  			// end of the main training function
+			gettimeofday(&(time_rec_end[id]), NULL);
   			sec_start[id][iter_counter[id]] = time_rec_start[id].tv_sec;
   			usec_start[id][iter_counter[id]] = time_rec_start[id].tv_usec;
   			sec_end[id][iter_counter[id]] = time_rec_end[id].tv_sec;
