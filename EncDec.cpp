@@ -535,7 +535,7 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
   			Real loss;
   			iter_counter[id] ++;
   			gettimeofday(&(time_rec_start[id]), NULL);
-  			this->train(this->trainData[i], args[id]->encState, args[id]->decState, args[id]->grad, loss);
+  			this->train_qiao_1(this->trainData[i], args[id]->encState, args[id]->decState, args[id]->grad, loss);
   			gettimeofday(&(time_rec_end[id]), NULL);
   			sec_start[id][iter_counter[id]] = time_rec_start[id].tv_sec;
   			usec_start[id][iter_counter[id]] = time_rec_start[id].tv_usec;

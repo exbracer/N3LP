@@ -24,10 +24,10 @@ PERF=
 PERF_FLAG=
 if [ $perfFlag -ne 0 ]
 then
-	PERF+=sudo\ perf\ record\ 
-	PERF+=-e\ probe_libtcmalloc:tc_malloc\ -agR\ 
-	#PERF+=perf\ stat\ 
-	#PERF+=-d\ 
+	#PERF+=sudo\ perf\ record\ 
+	#PERF+=-e\ probe_libtcmalloc:tc_malloc\ -agR\ 
+	PERF+=perf\ stat\ 
+	PERF+=-d\ 
 	#PERF_FLAG+=-e\ 
 	#PERF_FLAG+=branches,branch-misses,
 	#PERF_FLAG+=cache-references,cache-misses,
@@ -70,6 +70,9 @@ then
 	elif [ $numaFlag -eq 7 ]
 	then
 		NUMAFLAG+=--physcpubind=0,4,8,12,17,21,25,29,34,38,42,46,51,55,59,63
+	elif [ $numaFlag -eq 8 ]
+	then
+		NUMAFLAG+=--physcpubind=0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62
 	fi
 fi
 
@@ -84,6 +87,7 @@ STATISTIC_FILE+=_result.stats
 
 # executable
 EXECUTABLE_FILE=(
+	n3lp
 	n3lp_tc
 )
 
@@ -101,14 +105,14 @@ echo START!!
 
 for elem in ${EXECUTABLE_FILE[*]}
 do
-	#echo "" > $STATISTIC_FILE
+	echo "" > $STATISTIC_FILE
 	echo $elem
 
 	#$PERF $PERF_FLAG $NUMACTL $NUMAFLAG 
 	$NUMACTL $NUMAFLAG $PERF $PERF_FLAG ./$elem -d $dataset_path -i $inputDim -h $hiddenDim -m $miniBatchSize -n $numThreads #> $LOG_FILE
-	#cat $LOG_FILE
-	#cat $LOG_FILE | grep -n 'ms' | sed 's/\(.*\): \(.*\) ms./\2/g' >> $STATISTIC_FILE
-	#echo "" >> $STATISTIC_FILE
-	#mv $STATISTIC_FILE $RESULT_LOCATION$NUMA$elem$UNDERLINE$numThreads$UNDERLINE$STATISTIC_FILE
+	cat $LOG_FILE
+	cat $LOG_FILE | grep -n 'ms' | sed 's/\(.*\): \(.*\) ms./\2/g' >> $STATISTIC_FILE
+	echo "" >> $STATISTIC_FILE
+	mv $STATISTIC_FILE $RESULT_LOCATION$NUMA$elem$UNDERLINE$numThreads$UNDERLINE$STATISTIC_FILE
 
 done
