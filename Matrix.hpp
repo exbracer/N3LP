@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Eigen/Core>
-
+#define USE_FLOAT
 #ifdef USE_FLOAT
 typedef float Real;
 typedef Eigen::MatrixXf MatD;

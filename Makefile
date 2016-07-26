@@ -56,7 +56,7 @@ $(BUILD_DIR)/n3lp_tc : $(patsubst %, $(BUILD_DIR)/tc_%, $(OBJS))
 	mv $@ ./
 	rm -f ?*~
 
-inputAnalysis: inputAnalysis.cpp
+inputAnalysis: inputAnalysis.cxx
 	$(CXX) -o $@ $^ $(CXXFLAGS) $(LDFLAGS)
 
 clean:
