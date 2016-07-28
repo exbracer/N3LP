@@ -11,6 +11,9 @@ public:
   class DecCandidate;
   class ThreadArg;
 
+	// for trainOpenMP_qiao
+	class ThreadTimer;
+
   EncDec(Vocabulary& sourceVoc_, Vocabulary& targetVoc_,
 	 std::vector<EncDec::Data*>& trainData_, std::vector<EncDec::Data*>& devData_,
 	 const int inputDim, const int hiddenDim);
@@ -38,7 +41,10 @@ public:
   void gradCheck(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, MatD& param, const MatD& grad);
   void train(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss);
   void train_qiao_1(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss);
+  void train_qiao_2(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss, std::vector<double>& timeRecorder);
+  void train_qiao_3(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss, std::vector<double>& timeRecorder);
   void trainOpenMP(const Real learningRate, const int miniBatchSize = 1, const int numThreads = 1);
+  void trainOpenMP_qiao(const Real learningRate, const int miniBatchSize = 1, const int numThreads = 1);
   void save(const std::string& fileName);
   void load(const std::string& fileName);
   static void demo(const std::string& srcTrain, const std::string& tgtTrain, const std::string& srcDev, const std::string& tgtDev);
@@ -162,4 +168,30 @@ public:
   EncDec::Grad grad;
   Real loss;
   std::vector<LSTM::State*> encState, decState;
+};
+
+class EncDec::ThreadTimer 
+{
+public:
+	ThreadTimer(EncDec& encdec_, int size):encdec(encdec_)
+	{
+		for (int i = 0; i < size; i ++)
+		{
+			timeRecorder.push_back(0.0);
+		}
+	};
+
+	void init()
+	{
+		for (int i = 0; i < timeRecorder.size(); i ++)
+		{
+			timeRecorder[i] = 0.0;
+		}
+	}
+	int timeRecorderSize()
+	{
+		return (int)(timeRecorder.size());
+	}
+	EncDec& encdec;
+	std::vector<double> timeRecorder;
 };

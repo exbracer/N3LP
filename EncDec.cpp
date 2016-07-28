@@ -447,6 +447,278 @@ void EncDec::train_qiao_1(EncDec::Data* data, std::vector<LSTM::State*>& encStat
 	}
 }
 
+void EncDec::train_qiao_2(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss, std::vector<double>& timeRecorder)
+{	
+	// this function is for recording the time of each parts of train
+	// to check the scalability for each parts
+	struct timeval start, end;
+	struct timeval start_1, end_1;
+
+	VecD targetDist; // <??> created in stack of this thread
+
+	loss = 0.0;
+
+	// <!!> TIME PART I: this part needs a time recorder
+	gettimeofday(&start, NULL);
+	this->encode_qiao(data->src, encState);
+	gettimeofday(&end, NULL);
+	timeRecorder[0] += (double)((end.tv_sec-start.tv_sec)*1000000+(end.tv_usec-start.tv_usec))/1000;
+	// <!!> TIME PART I: end
+	// std::cout << "time part I" << std::endl;	
+	// <!!> TIME PART II: this part needs a time recorder
+	gettimeofday(&start, NULL);
+	for (int i = 0; i < (int)data->tgt.size(); ++i)
+	{
+		// <!!> TIME PART II-I: this part needs a time recorder
+		gettimeofday(&start_1, NULL);		
+		if (i == 0){
+			decState[0]->h = encState[data->src.size()]->h;
+			decState[0]->c = encState[data->src.size()]->c;
+		}
+		else {
+			this->dec.forward(this->targetEmbed.col(data->tgt[i-1]), decState[i-1], decState[i]);
+		}
+		gettimeofday(&end_1, NULL);
+		timeRecorder[1] += (double)((end_1.tv_sec-start_1.tv_sec)*1000000+(end_1.tv_usec-start_1.tv_usec))/1000;
+		// <!!> TIME PART II-I: end
+
+		// <!!> TIME PART II-II: this part needs a time recorder
+		gettimeofday(&start_1, NULL);
+		// <??> PART S: THIS PART MAY BE THE BOTTLENEC
+		// <??> PART S: BEGIN
+		this->softmax.calcDist(decState[i]->h, targetDist); // <??> are each thead competing for softmax
+		loss += this->softmax.calcLoss(targetDist, data->tgt[i]); // <??> same question as above
+		this->softmax.backward(decState[i]->h, targetDist, data->tgt[i], decState[i]->delh, grad.softmaxGrad);
+		// <??> PART S: END
+		gettimeofday(&end_1, NULL);
+		timeRecorder[2] += (double)((end_1.tv_sec-start_1.tv_sec)*1000000+(end_1.tv_usec-start_1.tv_usec))/1000;
+		// <!!> TIME PART II-II: end
+	}
+	gettimeofday(&end, NULL);
+	timeRecorder[3] += (double)((end.tv_sec-start.tv_sec)*1000000+(end.tv_usec-start.tv_usec))/1000;
+	// <!!> TIME PART II: end
+	// std::cout << "time part II" << std::endl;
+  	//decState[data->tgt.size()-1]->delc = this->zeros; // <??> can be faster by using setZeros?
+	decState[data->tgt.size()-1]->delc.setZero();
+
+	// <!!> TIME PART III: this part needs a time recorder
+	gettimeofday(&start, NULL);
+	for (int i = data->tgt.size()-1; i >= 1; --i)
+	{
+		// <!!> TIME PART III-I: this part needs a time recorder
+    	gettimeofday(&start_1, NULL);
+		// decState[i-1]->delc = this->zeros; // <??> can be faster by using setZeros?
+		decState[i-1]->delc.setZero();
+		this->dec.backward(decState[i-1], decState[i], grad.lstmTgtGrad, this->targetEmbed.col(data->tgt[i-1]));
+		gettimeofday(&end_1, NULL);
+		timeRecorder[4] += (double)((end_1.tv_sec-start_1.tv_sec)*1000000+(end_1.tv_usec-start_1.tv_usec))/1000;
+		// <!!> TIME PART III-I: end
+
+		// <!!> TIME PART III-II: this part needs a time recorder
+    	gettimeofday(&start_1, NULL);
+		// <??> PART A: THIS PART MAY BE THE BOTTLENECK, create new member
+    	// <??> PART A: BEGIN
+		if (grad.targetEmbed.count(data->tgt[i-1])){
+			grad.targetEmbed.at(data->tgt[i-1]) += decState[i]->delx;
+		}
+		else {
+			grad.targetEmbed[data->tgt[i-1]] = decState[i]->delx;
+		}
+		// <??> PART A: END
+		gettimeofday(&end_1, NULL);
+		timeRecorder[5] += (double)((end_1.tv_sec-start_1.tv_sec)*1000000+(end_1.tv_usec-start_1.tv_usec))/1000;
+		// <!!> TIME PART III-II: end
+	}
+	gettimeofday(&end, NULL);
+	timeRecorder[6] += (double)((end.tv_sec-start.tv_sec)*1000000+(end.tv_usec-start.tv_usec))/1000;
+	// <!!> TIME PART III: end
+	// std::cout << "time part III" << std::endl;
+	encState[data->src.size()]->delc = decState[0]->delc;
+	encState[data->src.size()]->delh = decState[0]->delh;
+
+	// <!!> TIME PART IV: this part needs a time recorder
+	gettimeofday(&start, NULL);
+	for (int i = data->src.size(); i >= 1; --i)
+	{
+		// <!!> TIME PART IV-I: this part needs a time recorder
+		gettimeofday(&start_1, NULL);
+		encState[i-1]->delh = this->zeros; // <??> can be faster by using setZeros?
+		encState[i-1]->delc = this->zeros; // <??> can be faster bu using setZeros?
+		//encState[i-1]->delh.setZero();
+		//encState[i-1]->delc.setZero();
+
+		this->enc.backward(encState[i-1], encState[i], grad.lstmSrcGrad, this->sourceEmbed.col(data->src[i-1]));
+		gettimeofday(&end_1, NULL);
+		timeRecorder[7] += (double)((end_1.tv_sec-start_1.tv_sec)*1000000+(end_1.tv_usec-start_1.tv_usec))/1000;
+		// <!!> TIME PART IV-I: end
+		// std::cout << "time part IV-I" << std::endl;
+		// <!!> TIME PART IV-II: this part needs a time recorder
+		gettimeofday(&start_1, NULL);
+		// <??> PART B: THIS PART MAY BE THE BOTTLENECK
+		// <??> PART B: BEGIN
+		if (grad.sourceEmbed.count(data->src[i-1])){
+			grad.sourceEmbed.at(data->src[i-1]) += encState[i]->delx;
+		}
+		else {
+			grad.sourceEmbed[data->src[i-1]] = encState[i]->delx;
+		}
+		// <??> PART B: END
+		gettimeofday(&end_1, NULL);
+		timeRecorder[8] += (double)((end_1.tv_sec-start_1.tv_sec)*1000000+(end_1.tv_usec-start_1.tv_usec))/1000;
+		// <!!> PART IV-II: end
+		// std::cout << "time part IV-II" << std::endl;
+	}
+	gettimeofday(&end, NULL);
+	timeRecorder[9] += (double)((end.tv_sec-start.tv_sec)*1000000+(end.tv_usec-start.tv_usec))/1000;
+	// <!!> TIME PART IV: end
+	// std::cout << "time part IV" << std::endl;
+} // end of train_qiao_2
+
+void EncDec::train_qiao_3(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss, std::vector<double>& timeRecorder)
+{	
+	// this function is for recording the time of each parts of train
+	// to check the scalability for each parts
+	struct timeval start, end;
+	struct timeval start_1, end_1;
+	struct timeval start_2, end_2;
+
+	VecD targetDist; // <??> created in stack of this thread
+
+	loss = 0.0;
+
+	// <!!> TIME PART I: this part needs a time recorder
+	gettimeofday(&start, NULL);
+	this->encode(data->src, encState);
+	gettimeofday(&end, NULL);
+	timeRecorder[0] += (double)((end.tv_sec-start.tv_sec)*1000000+(end.tv_usec-start.tv_usec))/1000;
+	// <!!> TIME PART I: end
+	// std::cout << "time part I" << std::endl;	
+	// <!!> TIME PART II: this part needs a time recorder
+	gettimeofday(&start, NULL);
+	for (int i = 0; i < (int)data->tgt.size(); ++i)
+	{
+		// <!!> TIME PART II-I: this part needs a time recorder
+		gettimeofday(&start_1, NULL);		
+		if (i == 0){
+			decState[0]->h = encState[data->src.size()]->h;
+			decState[0]->c = encState[data->src.size()]->c;
+		}
+		else {
+			this->dec.forward(this->targetEmbed.col(data->tgt[i-1]), decState[i-1], decState[i]);
+		}
+		gettimeofday(&end_1, NULL);
+		timeRecorder[1] += (double)((end_1.tv_sec-start_1.tv_sec)*1000000+(end_1.tv_usec-start_1.tv_usec))/1000;
+		// <!!> TIME PART II-I: end
+
+		// <!!> TIME PART II-II: this part needs a time recorder
+		gettimeofday(&start_1, NULL);
+		// <??> PART S: THIS PART MAY BE THE BOTTLENEC
+		// <??> PART S: BEGIN
+		// <!!> TIME PART II-II-I: this part neeeds a time recorder
+		gettimeofday(&start_2, NULL);
+		this->softmax.calcDist(decState[i]->h, targetDist); // <??> are each thead competing for softmax
+		gettimeofday(&end_2,NULL);
+		timeRecorder[10] += (double)((end_2.tv_sec-start_2.tv_sec)*1000000+(end_2.tv_usec-start_2.tv_usec))/1000;
+		// <!!> TIME PART II-II-I: end
+
+		// <!!> TIME PART II-II-II: this part needs a time recorder
+		gettimeofday(&start_2, NULL);
+		loss += this->softmax.calcLoss(targetDist, data->tgt[i]); // <??> same question as above
+		gettimeofday(&end_2,NULL);
+		timeRecorder[11] += (double)((end_2.tv_sec-start_2.tv_sec)*1000000+(end_2.tv_usec-start_2.tv_usec))/1000;
+		// <!!> TIME PART II-II-II: end
+		
+		// <!!> TIME PART II-II-III: this part needs a time recorder
+		gettimeofday(&start_2, NULL);
+		this->softmax.backward(decState[i]->h, targetDist, data->tgt[i], decState[i]->delh, grad.softmaxGrad);
+		gettimeofday(&end_2, NULL);
+		timeRecorder[12] += (double)((end_2.tv_sec-start_2.tv_sec)*1000000+(end_2.tv_usec-start_2.tv_usec))/1000;
+		// <!!> TIME PART II-II-III: end
+		// <??> PART S: END
+		gettimeofday(&end_1, NULL);
+		timeRecorder[2] += (double)((end_1.tv_sec-start_1.tv_sec)*1000000+(end_1.tv_usec-start_1.tv_usec))/1000;
+		// <!!> TIME PART II-II: end
+	}
+	gettimeofday(&end, NULL);
+	timeRecorder[3] += (double)((end.tv_sec-start.tv_sec)*1000000+(end.tv_usec-start.tv_usec))/1000;
+	// <!!> TIME PART II: end
+	// std::cout << "time part II" << std::endl;
+  	//decState[data->tgt.size()-1]->delc = this->zeros; // <??> can be faster by using setZeros?
+	decState[data->tgt.size()-1]->delc.setZero();
+
+	// <!!> TIME PART III: this part needs a time recorder
+	gettimeofday(&start, NULL);
+	for (int i = data->tgt.size()-1; i >= 1; --i)
+	{
+		// <!!> TIME PART III-I: this part needs a time recorder
+    	gettimeofday(&start_1, NULL);
+		// decState[i-1]->delc = this->zeros; // <??> can be faster by using setZeros?
+		decState[i-1]->delc.setZero();
+		this->dec.backward(decState[i-1], decState[i], grad.lstmTgtGrad, this->targetEmbed.col(data->tgt[i-1]));
+		gettimeofday(&end_1, NULL);
+		timeRecorder[4] += (double)((end_1.tv_sec-start_1.tv_sec)*1000000+(end_1.tv_usec-start_1.tv_usec))/1000;
+		// <!!> TIME PART III-I: end
+
+		// <!!> TIME PART III-II: this part needs a time recorder
+    	gettimeofday(&start_1, NULL);
+		// <??> PART A: THIS PART MAY BE THE BOTTLENECK, create new member
+    	// <??> PART A: BEGIN
+		if (grad.targetEmbed.count(data->tgt[i-1])){
+			grad.targetEmbed.at(data->tgt[i-1]) += decState[i]->delx;
+		}
+		else {
+			grad.targetEmbed[data->tgt[i-1]] = decState[i]->delx;
+		}
+		// <??> PART A: END
+		gettimeofday(&end_1, NULL);
+		timeRecorder[5] += (double)((end_1.tv_sec-start_1.tv_sec)*1000000+(end_1.tv_usec-start_1.tv_usec))/1000;
+		// <!!> TIME PART III-II: end
+	}
+	gettimeofday(&end, NULL);
+	timeRecorder[6] += (double)((end.tv_sec-start.tv_sec)*1000000+(end.tv_usec-start.tv_usec))/1000;
+	// <!!> TIME PART III: end
+	// std::cout << "time part III" << std::endl;
+	encState[data->src.size()]->delc = decState[0]->delc;
+	encState[data->src.size()]->delh = decState[0]->delh;
+
+	// <!!> TIME PART IV: this part needs a time recorder
+	gettimeofday(&start, NULL);
+	for (int i = data->src.size(); i >= 1; --i)
+	{
+		// <!!> TIME PART IV-I: this part needs a time recorder
+		gettimeofday(&start_1, NULL);
+		encState[i-1]->delh = this->zeros; // <??> can be faster by using setZeros?
+		encState[i-1]->delc = this->zeros; // <??> can be faster bu using setZeros?
+		//encState[i-1]->delh.setZero();
+		//encState[i-1]->delc.setZero();
+
+		this->enc.backward(encState[i-1], encState[i], grad.lstmSrcGrad, this->sourceEmbed.col(data->src[i-1]));
+		gettimeofday(&end_1, NULL);
+		timeRecorder[7] += (double)((end_1.tv_sec-start_1.tv_sec)*1000000+(end_1.tv_usec-start_1.tv_usec))/1000;
+		// <!!> TIME PART IV-I: end
+		// std::cout << "time part IV-I" << std::endl;
+		// <!!> TIME PART IV-II: this part needs a time recorder
+		gettimeofday(&start_1, NULL);
+		// <??> PART B: THIS PART MAY BE THE BOTTLENECK
+		// <??> PART B: BEGIN
+		if (grad.sourceEmbed.count(data->src[i-1])){
+			grad.sourceEmbed.at(data->src[i-1]) += encState[i]->delx;
+		}
+		else {
+			grad.sourceEmbed[data->src[i-1]] = encState[i]->delx;
+		}
+		// <??> PART B: END
+		gettimeofday(&end_1, NULL);
+		timeRecorder[8] += (double)((end_1.tv_sec-start_1.tv_sec)*1000000+(end_1.tv_usec-start_1.tv_usec))/1000;
+		// <!!> PART IV-II: end
+		// std::cout << "time part IV-II" << std::endl;
+	}
+	gettimeofday(&end, NULL);
+	timeRecorder[9] += (double)((end.tv_sec-start.tv_sec)*1000000+(end.tv_usec-start.tv_usec))/1000;
+	// <!!> TIME PART IV: end
+	// std::cout << "time part IV" << std::endl;
+} // end of train_qiao_3
+
 void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const int numThreads){
 	static std::vector<EncDec::ThreadArg*> args;
 	static std::vector<std::pair<int, int> > miniBatch;
@@ -518,16 +790,18 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
   	int max_batch_count = 4;
   	int batch_count = 0;
 
+	struct timeval start_temp, end_temp;
+
   	for (auto it = miniBatch.begin(); it != miniBatch.end(); ++it){
     //  std::cout << "\r" << "Progress: " << ++count << "/" << miniBatch.size() << " mini batches" << std::flush;
-		
+
 		batch_count ++;
+		std::cout << "batch count = " << batch_count << std::endl << std::endl;
 		if (batch_count > max_batch_count)
 		{
 			break;
 		}
-
-  		gettimeofday(&k_start, NULL); 
+		gettimeofday(&k_start, NULL);  
 
 #pragma omp parallel for num_threads(numThreads) schedule(dynamic) shared(args)
   		for (int i = it->first; i <= it->second; ++i){
@@ -547,8 +821,11 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
   		}
 
   		gettimeofday(&k_end, NULL);
-  		k_time += ((k_end.tv_sec-k_start.tv_sec)*1000000+(k_end.tv_usec-k_start.tv_usec))/1000.0;
-  		gettimeofday(&k_start_1, NULL);
+  		
+		Real temp_time = ((k_end.tv_sec-k_start.tv_sec)*1000000+(k_end.tv_usec-k_start.tv_usec))/1000.0;
+  		k_time_1 += temp_time;
+		std::cout << "for one minibatch: " << temp_time << std::endl << std::endl;
+		gettimeofday(&k_start_1, NULL);
   		for (int id = 0; id < numThreads; ++id){
   			grad += args[id]->grad;
 			args[id]->grad.init();
@@ -643,6 +920,229 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
 	return;
 }
 
+void EncDec::trainOpenMP_qiao(const Real learningRate, const int miniBatchSize, const int numThreads){
+	static std::vector<EncDec::ThreadArg*> args;
+	static std::vector<std::pair<int, int> > miniBatch;
+	static EncDec::Grad grad;
+	Real lossTrain = 0.0, perpDev = 0.0, denom = 0.0;
+	Real gradNorm, lr = learningRate;
+	const Real clipThreshold = 3.0;
+	struct timeval start, end;
+	std::cout << "size = " << sizeof(Real) << std::endl;
+	
+	// for recording time of different parts of train function
+	int sizeTimers = 20;
+	int numTimers = 13;
+	static std::vector<EncDec::ThreadTimer*> timers;
+	static std::vector<double> allBatchTimer; 
+
+	struct timeval k_start, k_end;
+	struct timeval k_start_1, k_end_1;
+	struct timeval k_start_2, k_end_2;
+	Real k_time = 0.0;
+	Real k_time_1 = 0.0;
+	Real k_time_2 = 0.0;
+
+	if (args.empty()){
+		for (int i = 0; i < numThreads; ++i)
+		{
+			args.push_back(new EncDec::ThreadArg(*this));
+
+      		for (int j = 0; j < 200; ++j){    //<??> why j < 200 here
+      			args[i]->encState.push_back(new LSTM::State);
+      			args[i]->encState[0]->h = this->zeros;
+      			args[i]->encState[0]->c = this->zeros;
+      			args[i]->decState.push_back(new LSTM::State);
+      		}
+      	}
+
+      	for (int i = 0, step = this->trainData.size()/miniBatchSize; i < step; ++i){
+      		miniBatch.push_back(std::pair<int, int>(i*miniBatchSize, (i == step-1 ? this->trainData.size()-1 : (i+1)*miniBatchSize-1)));
+      	}
+
+      	grad.lstmSrcGrad = LSTM::Grad(this->enc);
+      	grad.lstmTgtGrad = LSTM::Grad(this->dec);
+      	grad.softmaxGrad = SoftMax::Grad(this->softmax);
+
+	}
+
+	// init for timers
+	if (timers.empty())
+	{
+		std::cout << "hello" << std::endl;
+		for (int i = 0; i < numThreads; ++i)
+		{
+			timers.push_back(new EncDec::ThreadTimer(*this,sizeTimers));
+			std::cout << "for thread " << i << ", timeRecorder size = " << timers[i]->timeRecorder.size() << std::endl;
+		}
+	}
+	if (allBatchTimer.size() < sizeTimers)
+	{
+		for (int i = 0; i < sizeTimers; i++)
+		{
+			allBatchTimer.push_back(0.0);
+		}
+	}
+
+    std::cout << "number of miniBatch = " << miniBatch.size() << std::endl;
+    std::cout << "first pair is " << miniBatch[0].first << " and " << miniBatch[0].second << std::endl;
+
+	//this->rnd.shuffle(miniBatch);
+  	this->rnd.shuffle(this->trainData); // <??> this part can be faster??
+
+	// add time recorder here
+  	struct timeval time_rec_start[numThreads];
+  	struct timeval time_rec_end[numThreads];
+  	__time_t sec_start[numThreads][trainData.size()];
+  	__time_t sec_end[numThreads][trainData.size()];
+  	__suseconds_t usec_start[numThreads][trainData.size()];
+  	__suseconds_t usec_end[numThreads][trainData.size()];
+  	int iter_counter[numThreads];
+
+  	for (int ii = 0; ii < numThreads; ii ++)
+  	{
+  		iter_counter[ii] = -1;
+  	}
+
+  	gettimeofday(&start, 0);
+
+  	int count = 0;
+  	k_time = 0.0;
+  	k_time_1 = 0.0;
+  	k_time_2 = 0.0;
+
+  	int max_batch_count = 4;
+  	int batch_count = 0;
+
+	struct timeval start_temp, end_temp;
+
+  	for (auto it = miniBatch.begin(); it != miniBatch.end(); ++it){
+    //  std::cout << "\r" << "Progress: " << ++count << "/" << miniBatch.size() << " mini batches" << std::flush;
+
+		batch_count ++;
+		std::cout << "batch count = " << batch_count << std::endl << std::endl;
+		if (batch_count > max_batch_count)
+		{
+			break;
+		}
+		gettimeofday(&k_start, NULL);  
+
+#pragma omp parallel for num_threads(numThreads) schedule(dynamic) shared(args)
+  		for (int i = it->first; i <= it->second; ++i){
+  			int id = omp_get_thread_num();
+  			Real loss;
+  			iter_counter[id] ++;
+  			gettimeofday(&(time_rec_start[id]), NULL);
+			// the main training function
+  			this->train_qiao_3(this->trainData[i], args[id]->encState, args[id]->decState, args[id]->grad, loss, timers[id]->timeRecorder);
+  			// end of the main training function
+			gettimeofday(&(time_rec_end[id]), NULL);
+  			sec_start[id][iter_counter[id]] = time_rec_start[id].tv_sec;
+  			usec_start[id][iter_counter[id]] = time_rec_start[id].tv_usec;
+  			sec_end[id][iter_counter[id]] = time_rec_end[id].tv_sec;
+  			usec_end[id][iter_counter[id]] = time_rec_end[id].tv_usec;
+  			args[id]->loss += loss;
+  		}
+
+  		gettimeofday(&k_end, NULL);
+  		
+		Real temp_time = ((k_end.tv_sec-k_start.tv_sec)*1000000+(k_end.tv_usec-k_start.tv_usec))/1000.0;
+  		k_time_1 += temp_time;
+		std::cout << "for one minibatch: " << temp_time << std::endl << std::endl;
+
+		// ouput the recorded time
+		for (int i = 0; i < numTimers; i ++)
+		{
+			double sum = 0.0;
+			for (int j = 0; j < numThreads; j ++)
+			{
+				sum += timers[j]->timeRecorder[i];
+			}
+			allBatchTimer[i] += sum/numThreads;
+			std::cout << "average time used in part " << i << " = " << sum/numThreads << " ms" << std::endl;
+		}
+
+		for (int id = 0; id < numThreads; id ++)
+		{
+			timers[id]->init();
+		}
+
+		// seq part
+		gettimeofday(&k_start_1, NULL);
+  		for (int id = 0; id < numThreads; ++id){
+  			grad += args[id]->grad;
+			args[id]->grad.init();
+  			//args[id]->grad.init_qiao();
+  			lossTrain += args[id]->loss;
+  			args[id]->loss = 0.0;
+  		}
+
+  		gradNorm = sqrt(grad.norm())/miniBatchSize;
+  		Utils::infNan(gradNorm);
+  		lr = (gradNorm > clipThreshold ? clipThreshold*learningRate/gradNorm : learningRate);
+  		lr /= miniBatchSize;
+
+  		this->enc.sgd(grad.lstmSrcGrad, lr);
+  		this->dec.sgd(grad.lstmTgtGrad, lr);
+
+  		this->softmax.sgd(grad.softmaxGrad, lr);
+
+  		for (auto it = grad.sourceEmbed.begin(); it != grad.sourceEmbed.end(); ++it){
+  			this->sourceEmbed.col(it->first) -= lr*it->second;
+  		}
+  		for (auto it = grad.targetEmbed.begin(); it != grad.targetEmbed.end(); ++it){
+  			this->targetEmbed.col(it->first) -= lr*it->second;
+  		}
+
+  		grad.init();
+  		gettimeofday(&k_end_1, NULL);
+  		k_time_1 += ((k_end_1.tv_sec-k_start_1.tv_sec)*1000000+(k_end_1.tv_usec-k_start_1.tv_usec))/1000.0;
+  	} // end of for (auto it = miniBatch.begin(); it != miniBatch.end(); ++it)
+
+  	std::cout << std::endl;
+  	gettimeofday(&end, 0);
+  	//std::cout << "Training time for this epoch: " << (end.tv_sec-start.tv_sec)/60.0 << " min." << std::endl;
+  	std::cout << "Training time for this epoch: " << ((end.tv_sec-start.tv_sec)*1000000 + (end.tv_usec-start.tv_usec))/1000.0 << " ms." << std::endl;
+  	std::cout << "Time for parallel part: " << k_time << " ms." << std::endl;
+  	std::cout << "Time for seq part: " << k_time_1 << " ms." << std::endl;
+
+  	std::cout << "Training Loss (/sentence):    " << lossTrain/this->trainData.size() << std::endl;
+  	int sum_iter_counter = 0;
+  	for (int ii = 0; ii < numThreads; ii ++)
+  	{
+  		std::cout << "thread id  = " << ii << ", count = " << iter_counter[ii] << std::endl;
+  		sum_iter_counter += iter_counter[ii];
+  	}
+  	std::cout << "sum = " << sum_iter_counter << std::endl;
+
+	std::cout << std::endl;
+	std::cout << "time used for each part after an epoch" << std::endl;
+	for (int i = 0; i < numTimers; i ++)
+	{
+		std::cout << allBatchTimer[i] << std::endl;
+	}
+	std::cout << std::endl;
+	// here for record into file
+  	std::ofstream fout_start("time_rec_start.log");
+  	std::ofstream fout_end("time_rec_end.log");
+
+  	for (int ii = 0; ii < numThreads; ii ++)
+  	{
+  		for (int jj = 0; jj <= iter_counter[ii]; jj ++)
+  		{
+  			double start_time = (double)((sec_start[ii][jj] - start.tv_sec) * 1000000.0 + (usec_start[ii][jj]-start.tv_usec))/1000.0;
+  			double end_time = (double)((sec_end[ii][jj] - start.tv_sec) * 1000000.0 + (usec_end[ii][jj]-start.tv_usec))/1000.0;
+  			fout_start << ii << " " << start_time << std::endl;
+  			fout_end << ii << " " << end_time << std::endl;
+  		}
+  	}
+  	fout_start.close();
+  	fout_end.close();
+
+	// for a quick test
+	return;
+} // end of trainOpenMp_qiao
+
 void EncDec::demo(const std::string& srcTrain, const std::string& tgtTrain, const std::string& srcDev, const std::string& tgtDev){
 	const int threSource = 1;
 	const int threTarget = 1;
@@ -709,15 +1209,15 @@ void EncDec::demo(const std::string& srcTrain, const std::string& tgtTrain, cons
 	Real learningRate = 0.5;
 	const int inputDim = 50;
 	const int hiddenDim = 50;
-  const int miniBatchSize = 128; // <!!> modify this parameter to test
-  const int numThread = 8;
-  EncDec encdec(sourceVoc, targetVoc, trainData, devData, inputDim, hiddenDim);
-  auto test = trainData[0]->src;
+	const int miniBatchSize = 128; // <!!> modify this parameter to test
+	const int numThread = 8;
+	EncDec encdec(sourceVoc, targetVoc, trainData, devData, inputDim, hiddenDim);
+	auto test = trainData[0]->src;
 
-  std::cout << "# of training data:    " << trainData.size() << std::endl;
-  std::cout << "# of development data: " << devData.size() << std::endl;
-  std::cout << "Source voc size: " << sourceVoc.tokenIndex.size() << std::endl;
-  std::cout << "Target voc size: " << targetVoc.tokenIndex.size() << std::endl;
+	std::cout << "# of training data:    " << trainData.size() << std::endl;
+	std::cout << "# of development data: " << devData.size() << std::endl;
+	std::cout << "Source voc size: " << sourceVoc.tokenIndex.size() << std::endl;
+	std::cout << "Target voc size: " << targetVoc.tokenIndex.size() << std::endl;
   
   int break_point;
 
@@ -851,14 +1351,15 @@ void EncDec::demo_qiao(const std::string& srcTrain, const std::string& tgtTrain,
 	int break_point;
 
 	// std::cin >> break_point;
-
-	for (int i = 0; i < 3; ++i){
+	int max_epoch = 3;
+	for (int i = 0; i < max_epoch; ++i){
 		if (i+1 >= 6){
 		//learningRate *= 0.5;
 		}
 
 		std::cout << "\nEpoch " << i+1 << std::endl;
-		encdec.trainOpenMP(learningRate, miniBatchSize, numThread);
+		//encdec.trainOpenMP(learningRate, miniBatchSize, numThread);
+		encdec.trainOpenMP_qiao(learningRate, miniBatchSize, numThread);
 		// std::cout << "### Greedy ###" << std::endl;
 		// encdec.translate(test, 1, 100, 1);
 		// std::cout << "### Beam search ###" << std::endl;
