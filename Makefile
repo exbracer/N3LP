@@ -3,7 +3,9 @@
 #	created by qiaoyc
 #
 ################################
-CXX=g++
+
+#CXX=g++
+CXX=/home/qiao/user/bin/g++ # for magellan
 
 EIGEN_LOCATION=./
 GPERF_LIB_LOCATION=/home/qiao/user/lib
@@ -15,7 +17,8 @@ TARGETS+= n3lp_tc
 
 CXXFLAGS=
 CXXFLAGS+= -O3
-CXXFLAGS+= -std=c++0x
+#CXXFLAGS+= -std=c++0x
+CXXFLAGS+= -std=c++11
 CXXFLAGS+= -funroll-loops
 CXXFLAGS+= -march=native
 CXXFLAGS+= -m64

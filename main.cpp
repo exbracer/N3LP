@@ -1,6 +1,7 @@
 #include "EncDec.hpp"
 
 #include <iostream>
+#include <string>
 class ArgsTable
 {
 public:
