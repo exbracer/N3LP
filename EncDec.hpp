@@ -10,7 +10,7 @@ public:
   class Grad;
   class DecCandidate;
   class ThreadArg;
-
+    class ThreadArg_2;
 	// for trainOpenMP_qiao
 	class ThreadTimer;
 
@@ -43,17 +43,27 @@ public:
   void train_qiao_1(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss);
   void train_qiao_2(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss, std::vector<double>& timeRecorder);
   void train_qiao_3(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss, std::vector<double>& timeRecorder);
-  void trainOpenMP(const Real learningRate, const int miniBatchSize = 1, const int numThreads = 1);
+  
+    // for new version -- train_qiao_4()
+    void train_qiao_4(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss, std::vector<double>& timeRecorder, std::vector<VecD>& target_dist, std::vector<VecD>& delosBuffer, std::vector<VecD>& delisBuffer, std::vector<VecD>& delusBuffer, std::vector<VecD>& delfsBuffer);
+
+    void trainOpenMP(const Real learningRate, const int miniBatchSize = 1, const int numThreads = 1);
   void trainOpenMP_qiao(const Real learningRate, const int miniBatchSize = 1, const int numThreads = 1);
-  void save(const std::string& fileName);
+    
+    // for new version -- trainOpenMP_qiao_2()
+    void trainOpenMP_qiao_2(const Real learningRate, const int miniBatchSize = 1, const int numThreads = 1);
+    void save(const std::string& fileName);
   void load(const std::string& fileName);
   static void demo(const std::string& srcTrain, const std::string& tgtTrain, const std::string& srcDev, const std::string& tgtDev);
 	static void demo_qiao(const std::string& srcTrain, const std::string& tgtTrain, const std::string& srcDev, const std::string& tgtDev, const Real argsLearningRate, const int argsInputDim, const int argsHiddenDim, const int argsMiniBatchSize, const int argsNumThreads);
-};
 
+    // for new version -- demo_qiao_2()
+    static void demo_qiao_2(const std::string& srcTrain, const std::string& tgtTrain, const std::string& srcDev, const std::string& tgtDev, const Real argsLearningRate, const int argsInputDim, const int argsHiddenDim, const int argsMinibatchSize, const int argsNumThreads);
+
+};
 class EncDec::Data{
 public:
-  std::vector<int> src, tgt;
+    std::vector<int> src, tgt;
 };
 
 class EncDec::Grad{
@@ -170,6 +180,34 @@ public:
   std::vector<LSTM::State*> encState, decState;
 };
 
+// added by qiao for new thread args that contains temp buffer for delc and so on
+class EncDec::ThreadArg_2{
+public:
+    ThreadArg_2(EncDec& encdec_):encdec(encdec_), loss(0.0)
+    {
+        this->grad.lstmSrcGrad = LSTM::Grad(this->encdec.enc);
+        this->grad.lstmTgtGrad = LSTM::Grad(this->encdec.dec);
+        this->grad.softmaxGrad = SoftMax::Grad(this->encdec.softmax);
+    };
+
+    int beg, end;
+    EncDec& encdec;
+    EncDec::Grad grad;
+    Real loss;
+    std::vector<LSTM::State*> encState, decState;
+
+    // buffer for smart cache usage
+    std::vector<VecD> target_dist;
+    std::vector<VecD> delosBuffer;
+    std::vector<VecD> delisBuffer;
+    std::vector<VecD> delusBuffer;
+    std::vector<VecD> delfsBuffer;
+
+    std::vector<VecD> deltaFeatureBuffer;
+    std::vector<VecD> gradWeightBuffer;
+};
+
+// add by korchaign for time record in each thread 
 class EncDec::ThreadTimer 
 {
 public:
@@ -194,4 +232,4 @@ public:
 	}
 	EncDec& encdec;
 	std::vector<double> timeRecorder;
-};
+}; // end of class EncDec::ThreadTimer

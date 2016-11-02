@@ -36,3 +36,22 @@ void SoftMax::load(std::ifstream& ifs){
   Utils::load(ifs, this->weight);
   Utils::load(ifs, this->bias);
 }
+
+// for smart cache usage
+void SoftMax::backward1(VecD& output, const int label, SoftMax::Grad& grad)
+{
+    // this grad belongs to the private softmax of each thread
+    output.coeffRef(label, 0) -= 1.0;
+    grad.bias += output;
+}
+
+void SoftMax::backward2(const VecD& output, VecD& deltaFeature)
+{
+    // the weight belongs to the shared softmax
+    deltaFeature = this->weight.transpose()* output;
+}
+
+void SoftMax::backward3(VecD& input, const VecD& output, SoftMax::Grad& grad, int index)
+{
+    grad.weight.col(index) += output*input(index, 0);
+}

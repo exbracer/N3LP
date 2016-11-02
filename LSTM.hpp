@@ -22,7 +22,8 @@ public:
   virtual void forward(const VecD& xt, const LSTM::State* prev, LSTM::State* cur);
   virtual void forward(const VecD& xt, LSTM::State* cur);
   virtual void backward(LSTM::State* prev, LSTM::State* cur, LSTM::Grad& grad, const VecD& xt);
-  virtual void backward(LSTM::State* cur, LSTM::Grad& grad, const VecD& xt);
+    virtual void backward1(LSTM::State* prev, LSTM::State* curr, VecD& delo, VecD& deli, VecD& delu, VecD& delf);
+    virtual void backward(LSTM::State* cur, LSTM::Grad& grad, const VecD& xt);
   void sgd(const LSTM::Grad& grad, const Real learningRate);
   void save(std::ofstream& ofs);
   void load(std::ifstream& ifs);

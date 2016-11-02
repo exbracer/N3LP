@@ -136,6 +136,33 @@ void LSTM::backward(LSTM::State* prev, LSTM::State* cur, LSTM::Grad& grad, const
   grad.bo += delo;
   grad.bu += delu;
 }
+
+// for smart cache usage
+void LSTM::backward1(LSTM::State* prev, LSTM::State* curr, VecD& delo, VecD& deli, VecD& delu, VecD& delf)
+{
+    // VecD delo, deli, delu, delf;
+
+    curr->delc.array() += ActFunc::tanhPrime(curr->cTanh).array() * curr->delh.array() * curr->o.array();
+    prev->delc.array() += curr->delc.array() * curr->f.array();
+
+    delo = ActFunc::logisticPrime(curr->o).array() * curr->delh.array() * curr->cTanh.array();
+    deli = ActFunc::logisticPrime(curr->i).array() * curr->delc.array() * curr->u.array();
+    delf = ActFunc::logisticPrime(curr->f).array() * curr->delc.array() * prev->c.array();
+    delu = ActFunc::tanhPrime(curr->u).array() * curr->delc.array() * curr->i.array();
+
+    curr->delx.noalias() = 
+        this->Wxi.transpose() * deli + 
+        this->Wxf.transpose() * delf + 
+        this->Wxo.transpose() * delo + 
+        this->Wxu.transpose() * delu;
+
+    prev->delh.noalias() = 
+        this->Whi.transpose() * deli + 
+        this->Whf.transpose() * delf + 
+        this->Who.transpose() * delo + 
+    this->Whu.transpose() * delu;
+}
+
 void LSTM::backward(LSTM::State* cur, LSTM::Grad& grad, const VecD& xt){
   VecD delo, deli, delu;
 

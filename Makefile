@@ -4,11 +4,13 @@
 #
 ################################
 
-#CXX=g++
-CXX=/home/qiao/user/bin/g++ # for magellan
+CXX=g++ # default compilier
+#CXX=/home/qiao/user/bin/g++ # for magellan
 
 EIGEN_LOCATION=./
-GPERF_LIB_LOCATION=/home/qiao/user/lib
+#GPERF_LIB_LOCATION=/home/qiao/user/lib # for taura lab
+#GPERF_LIB_LOCATION=/home/korchagin/user/lib # for gorgon0
+GPERF_LIB_LOCATION=~/user/lib
 BUILD_DIR=objs
 
 TARGETS=
