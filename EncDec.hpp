@@ -3,7 +3,7 @@
 #include "LSTM.hpp"
 #include "Vocabulary.hpp"
 #include "SoftMax.hpp"
-
+#include <iostream>
 class EncDec{
 public:
   class Data;
@@ -76,11 +76,17 @@ public:
   // <??> PART I: this part may be the bottleneck
   // <??> PART I: BEGIN
   void init(){
-    this->sourceEmbed.clear(); // destructor are called, all the elements in the unordered_map are dropped
-    this->targetEmbed.clear(); // destructor are called, all the elements in the unordered_map are dropped
-    this->lstmSrcGrad.init(); // all the matrix and vector set to zero
-    this->lstmTgtGrad.init(); // all the matrix and vector set to zero
-    this->softmaxGrad.init(); // all the matrix and vector set to zero
+	  //std::cout << "1" << std::endl;
+	  this->sourceEmbed.clear(); // destructor are called, all the elements in the unordered_map are dropped
+		//std::cout << "2" << std::endl;
+	  this->targetEmbed.clear(); // destructor are called, all the elements in the unordered_map are dropped
+		//std::cout << "3" << std::endl;
+	  this->lstmSrcGrad.init(); // all the matrix and vector set to zero
+		//std::cout << "4" << std::endl;
+	  this->lstmTgtGrad.init(); // all the matrix and vector set to zero
+		//std::cout << "5" << std::endl;
+	  this->softmaxGrad.init(); // all the matrix and vector set to zero
+	//std::cout << "6" << std::endl;
   }
   void init_qiao()
   {
@@ -103,8 +109,13 @@ public:
 
   Real norm(){
     Real res = this->lstmSrcGrad.norm()+this->lstmTgtGrad.norm()+this->softmaxGrad.norm();
-
-    for (auto it = this->sourceEmbed.begin(); it != this->sourceEmbed.end(); ++it){
+	/*
+	std::cout << "in norm() function " << std::endl;
+	std::cout << "lstmSrcGrad.norm() = " << this->lstmSrcGrad.norm() << std::endl;
+	std::cout << "lstmTgtGrad.norm() = " << this->lstmTgtGrad.norm() << std::endl;
+	std::cout << "softmaxGrad.norm() = " << this->softmaxGrad.norm() << std::endl;
+    */
+	for (auto it = this->sourceEmbed.begin(); it != this->sourceEmbed.end(); ++it){
       res += it->second.squaredNorm();
     }
     for (auto it = this->targetEmbed.begin(); it != this->targetEmbed.end(); ++it){

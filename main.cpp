@@ -154,12 +154,9 @@ int main(int argc, char** argv){
 	std::cout << "hidden dimention = " << hiddenDim << std::endl;
 	std::cout << "miniBatchSize = " << miniBatchSize <<  std::endl;
 	std::cout << "number of threads = " << numThreads << std::endl;
-	// EncDec::demo_qiao(train_src, train_tgt, train_src, train_tgt, learningRate,
-	//		inputDim, hiddenDim, miniBatchSize, numThreads);
+	//EncDec::demo_qiao(train_src, train_tgt, train_src, train_tgt, learningRate, inputDim, hiddenDim, miniBatchSize, numThreads);
 
-    EncDec::demo_qiao_2(train_src, train_tgt, train_src, train_tgt, learningRate, 
-            inputDim, hiddenDim, miniBatchSize, numThreads);
-
+	EncDec::demo_qiao_2(train_src, train_tgt, train_src, train_tgt, learningRate, inputDim, hiddenDim, miniBatchSize, numThreads);
 	return 0;
 
 }

@@ -91,24 +91,46 @@ int main(int argc, char **argv)
 
 	int numSrcTokens = 0;
 	int numTgtTokens = 0;
+	int maxNumTokens = 0;
+	int minNumTokens = 1000000;
 	// read training daay
 	for (std::string line;std::getline(ifsSrcTrain, line) && numLine < maxNumLines; numLine ++)
 	{
 		Utils::split(line, tokens);
 		numSrcTokens += tokens.size();
+		if (tokens.size() > maxNumTokens)
+		{
+			maxNumTokens = tokens.size();
+		}
+		if (tokens.size() < minNumTokens)
+		{
+			minNumTokens = tokens.size();
+		}
 	}
 
 	std::cout << "average tokens of first " << numLine << " sentence for Source Data is: " << (Real)(numSrcTokens)/numLine << std::endl;
-
+	std::cout << "maximum tokens of first " << numLine << " sentence for Source Data is: " << maxNumTokens << std::endl;
+	std::cout << "minimum tokens of first " << numLine << " sentence for Source Data is: " << minNumTokens << std::endl;
 	numLine = 0;
+	maxNumTokens = 0;
+	minNumTokens = 1000000;
 	for (std::string line;std::getline(ifsTgtTrain, line) && numLine < maxNumLines; numLine ++)
 	{
 		Utils::split(line, tokens);
 		numTgtTokens += tokens.size();
+		if (tokens.size() > maxNumTokens)
+		{
+			maxNumTokens = tokens.size();
+		}
+		if (tokens.size() < minNumTokens)
+		{
+			minNumTokens = tokens.size();
+		}
 	}
 
 	std::cout << "average tokens of first " << numLine << " sentence for Target Data is: " << (Real)(numTgtTokens)/numLine << std::endl;
-	
+	std::cout << "maximum tokens of first " << numLine << " sentence for Target Data is: " << maxNumTokens << std::endl;
+	std::cout << "minimum tokens of first " << numLine << " sentence for Target Data is: " << minNumTokens << std::endl;
 	
 	return 0;
 }

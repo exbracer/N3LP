@@ -4,6 +4,7 @@
 #include <fstream>
 #include <sys/time.h>
 #include <omp.h>
+#include "ActFunc.hpp"
 
 EncDec::EncDec(Vocabulary& sourceVoc_, Vocabulary& targetVoc_, std::vector<EncDec::Data*>& trainData_, std::vector<EncDec::Data*>& devData_, const int inputDim, const int hiddenDim):
 sourceVoc(sourceVoc_), targetVoc(targetVoc_), trainData(trainData_), devData(devData_)
@@ -639,21 +640,51 @@ void EncDec::train_qiao_3(EncDec::Data* data, std::vector<LSTM::State*>& encStat
 		timeRecorder[2] += (double)((end_1.tv_sec-start_1.tv_sec)*1000000+(end_1.tv_usec-start_1.tv_usec))/1000;
 		// <!!> TIME PART II-II: end
 	}
+	//std::cout << "loss = " << loss << std::endl;
+	//std::cout << "softmax.grad = " << grad.softmaxGrad.norm() << std::endl;
+	int xx_size = (int)data->tgt.size()-1;
+	//std::cout << "during softmax delh at " << xx_size  << " is " << decState[xx_size]->delh.squaredNorm() << std::endl;
+	//std::cout << "during softmax delh at " << 5 << " is " << decState[5]->delh.squaredNorm() << std::endl;
 	gettimeofday(&end, NULL);
 	timeRecorder[3] += (double)((end.tv_sec-start.tv_sec)*1000000+(end.tv_usec-start.tv_usec))/1000;
 	// <!!> TIME PART II: end
 	// std::cout << "time part II" << std::endl;
-  	//decState[data->tgt.size()-1]->delc = this->zeros; // <??> can be faster by using setZeros?
-	decState[data->tgt.size()-1]->delc.setZero();
-
+  	decState[data->tgt.size()-1]->delc = this->zeros; // <??> can be faster by using setZeros?
+	//decState[data->tgt.size()-1]->delc.setZero();
+	/*
+	std::cout << "///after set zero ////" << std::endl;
+	std::cout << decState[data->tgt.size()-1]->delc.array() << std::endl;
+	std::cout << "///////////////////////" << std::endl;
+	std::cout << "xx cTanh = " << decState[1]->cTanh.squaredNorm() << std::endl;
+	std::cout << "xx delh = " << decState[xx_size-1]->delh.squaredNorm() << std::endl;
+	std::cout << "xx o = " << decState[1]->o.squaredNorm() << std::endl;
+	
+	std::cout << "**** before ***************" << std::endl;
+	std::cout << "xx cTanh = " << decState[1]->cTanh.squaredNorm() << std::endl;
+	std::cout << "xx delh = " << decState[1]->delh.squaredNorm() << std::endl;
+	std::cout << "xx o = " << decState[1]->o.squaredNorm() << std::endl;
+	std::cout << "+++++++++++++++++++++++++++" << std::endl;
+	std::cout << "curr cTanh = " << decState[xx_size]->cTanh.squaredNorm() << std::endl;
+	std::cout << "curr delh = " << decState[xx_size]->delh.squaredNorm() << std::endl;
+	std::cout << "curr o = " << decState[xx_size]->o.squaredNorm() << std::endl;
+	std::cout << "curr delc = " << decState[xx_size]->delc.squaredNorm() << std::endl;
+	std::cout << "curr f = " << decState[xx_size]->f.squaredNorm() << std::endl;
+	std::cout << "prev delc = " << decState[xx_size-1]->delc.squaredNorm() << std::endl;
+	std::cout << "curr i = " << decState[xx_size]->i.squaredNorm() << std::endl;
+	std::cout << "curr u = " << decState[xx_size]->u.squaredNorm() << std::endl;
+	std::cout << "curr c = " << decState[xx_size]->c.squaredNorm() << std::endl;
+	std::cout << "curr delx = " << decState[xx_size]->delx.squaredNorm() << std::endl;
+	std::cout << "prev delh = " << decState[xx_size-1]->delh.squaredNorm() << std::endl;
+	std::cout << "****************************" << std::endl;
+	*/
 	// <!!> TIME PART III: this part needs a time recorder
 	gettimeofday(&start, NULL);
 	for (int i = data->tgt.size()-1; i >= 1; --i)
 	{
 		// <!!> TIME PART III-I: this part needs a time recorder
     	gettimeofday(&start_1, NULL);
-		// decState[i-1]->delc = this->zeros; // <??> can be faster by using setZeros?
-		decState[i-1]->delc.setZero();
+		decState[i-1]->delc = this->zeros; // <??> can be faster by using setZeros?
+		//decState[i-1]->delc.setZero();
 		this->dec.backward(decState[i-1], decState[i], grad.lstmTgtGrad, this->targetEmbed.col(data->tgt[i-1]));
 		gettimeofday(&end_1, NULL);
 		timeRecorder[4] += (double)((end_1.tv_sec-start_1.tv_sec)*1000000+(end_1.tv_usec-start_1.tv_usec))/1000;
@@ -674,8 +705,39 @@ void EncDec::train_qiao_3(EncDec::Data* data, std::vector<LSTM::State*>& encStat
 		timeRecorder[5] += (double)((end_1.tv_sec-start_1.tv_sec)*1000000+(end_1.tv_usec-start_1.tv_usec))/1000;
 		// <!!> TIME PART III-II: end
 	}
+	/*
+	VecD xx_delo =  ActFunc::logisticPrime(decState[1]->cTanh).array() * decState[1]->delh.array() * decState[1]->o.array();
+	std::cout << "xx_delo[1] = " << xx_delo.squaredNorm() << std::endl;
+	std::cout << "hello cTanh = " << decState[1]->cTanh.squaredNorm() << std::endl;
+	std::cout << "hello delh = " << decState[xx_size-1]->delh.squaredNorm() << std::endl;
+	std::cout << "hello o = " << decState[1]->o.squaredNorm() << std::endl;
+	
+	std::cout << "******after *******************" << std::endl;
+	std::cout << "xx cTanh = " << decState[1]->cTanh.squaredNorm() << std::endl;
+	std::cout << "xx delh = " << decState[1]->delh.squaredNorm() << std::endl;
+	std::cout << "xx o = " << decState[1]->o.squaredNorm() << std::endl;
+	std::cout << "+++++++++++++++++++++++++++++++" << std::endl;
+	std::cout << "curr cTanh = " << decState[xx_size]->cTanh.squaredNorm() << std::endl;
+	std::cout << "curr delh = " << decState[xx_size]->delh.squaredNorm() << std::endl;
+	std::cout << "curr o = " << decState[xx_size]->o.squaredNorm() << std::endl;
+	std::cout << "curr delc = " << decState[xx_size]->delc.squaredNorm() << std::endl;
+	std::cout << "curr f = " << decState[xx_size]->f.squaredNorm() << std::endl;
+	std::cout << "prev delc = " << decState[xx_size-1]->delc.squaredNorm() << std::endl;
+	std::cout << "curr i = " << decState[xx_size]->i.squaredNorm() << std::endl;
+	std::cout << "curr u = " << decState[xx_size]->u.squaredNorm() << std::endl;
+	std::cout << "curr c = " << decState[xx_size]->c.squaredNorm() << std::endl;
+	std::cout << "curr delx = " << decState[xx_size]->delx.squaredNorm() << std::endl;
+	std::cout << "prev delh = " << decState[xx_size-1]->delh.squaredNorm() << std::endl;
+	std::cout << "*******************************" << std::endl;
+	*/
+	
 	gettimeofday(&end, NULL);
 	timeRecorder[6] += (double)((end.tv_sec-start.tv_sec)*1000000+(end.tv_usec-start.tv_usec))/1000;
+	//std::cout << "lstmTgtGrad = " << grad.lstmTgtGrad.norm() << std::endl;
+	
+	//int input_xx;
+	//std::cin >> input_xx;
+	
 	// <!!> TIME PART III: end
 	// std::cout << "time part III" << std::endl;
 	encState[data->src.size()]->delc = decState[0]->delc;
@@ -717,6 +779,7 @@ void EncDec::train_qiao_3(EncDec::Data* data, std::vector<LSTM::State*>& encStat
 	timeRecorder[9] += (double)((end.tv_sec-start.tv_sec)*1000000+(end.tv_usec-start.tv_usec))/1000;
 	// <!!> TIME PART IV: end
 	// std::cout << "time part IV" << std::endl;
+	//std::cout << "lstmSrcGrad = " << grad.lstmSrcGrad.norm() << std::endl;
 } // end of train_qiao_3
 
 void EncDec::train_qiao_4(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss, std::vector<double>& timeRecorder, std::vector<VecD>& target_dist, std::vector<VecD>& delosBuffer, std::vector<VecD>& delisBuffer, std::vector<VecD>& delusBuffer, std::vector<VecD>& delfsBuffer)
@@ -732,6 +795,7 @@ void EncDec::train_qiao_4(EncDec::Data* data, std::vector<LSTM::State*>& encStat
 	loss = 0.0;
 
 	// <!!> TIME PART I: this part needs a time recorder
+	// std::cout << "part 1" << std::endl;
 	gettimeofday(&start, NULL);
 	this->encode(data->src, encState);
 	gettimeofday(&end, NULL);
@@ -740,9 +804,12 @@ void EncDec::train_qiao_4(EncDec::Data* data, std::vector<LSTM::State*>& encStat
 	// std::cout << "time part I" << std::endl;	
     
     // <!!> TIME PART II: this part needs a time recorder
+	// std::cout << "part 2" << std::endl;
 	gettimeofday(&start, NULL);
-    // <!!> TIME PART II-1: this part needs a time recorder
-    gettimeofday(&start_1, NULL);
+
+	// <!!> TIME PART II-1: this part needs a time recorder
+	// std::cout << "part 2-1" << std::endl;
+	gettimeofday(&start_1, NULL);
     // when i = 0, pass h and c from enc to dec
     decState[0]->h = encState[data->src.size()]->h;
     decState[0]->c = encState[data->src.size()]->c;
@@ -756,29 +823,37 @@ void EncDec::train_qiao_4(EncDec::Data* data, std::vector<LSTM::State*>& encStat
     // <!!> TIME PART II-I: end
     
     // <!!> TIME PART II-II: this part needs a time recorder
-    gettimeofday(&start_1, NULL);
-    // <!!> TIME PART II-II-I: this time needs a time recorder 
+	// std::cout << "part 2-2" << std::endl;
+	gettimeofday(&start_1, NULL);
+    // <!!> TIME PART II-II-I: this time needs a time recorder
+	// std::cout << "part 2-2-1" << std::endl;
     gettimeofday(&start_2, NULL);
+	// std::cout << "tgt.size = " << (int)data->tgt.size() << std::endl;
     for (int i = 0; i < (int)data->tgt.size(); ++ i)
     {
         this->softmax.calcDist(decState[i]->h, target_dist[i]);
     }
+	// std::cout << "xxx" << std::endl;
     gettimeofday(&end_2, NULL);
-    timeRecorder[10] += (double)((end_2.tv_sec-start_2.tv_sec)*1000000+(end_1.tv_usec-start_1.tv_usec))/1000;
+    timeRecorder[10] += (double)((end_2.tv_sec-start_2.tv_sec)*1000000+(end_2.tv_usec-start_2.tv_usec))/1000;
     // <!!> TIME PART II-II-I: end
 
     // <!!> TIME PART II-II-II: this time needs a time recorder
-    gettimeofday(&start_2, NULL);
+	// std::cout << "part 2-2-2" << std::endl;
+	gettimeofday(&start_2, NULL);
     for (int i = 0; i < (int)data->tgt.size(); ++ i)
     {
         loss += this->softmax.calcLoss(target_dist[i], data->tgt[i]);
+		
     }
+	//std::cout << "loss = " << loss << std::endl;
     gettimeofday(&end_2, NULL);
     timeRecorder[11] += (double)((end_2.tv_sec-start_2.tv_sec)*1000000+(end_2.tv_usec-start_2.tv_usec))/1000;
     // <!!> TIME PART II-II-II: end
 
     // <!!> TIME PART II-II-III: this part needs a time recorder
-    gettimeofday(&start_2, NULL);
+	// std::cout << "part 2-2-3" << std::endl;
+	gettimeofday(&start_2, NULL);
     for (int i = 0; i < (int)data->tgt.size(); ++ i)
     {
         this->softmax.backward1(target_dist[i], data->tgt[i], grad.softmaxGrad);
@@ -795,73 +870,140 @@ void EncDec::train_qiao_4(EncDec::Data* data, std::vector<LSTM::State*>& encStat
             this->softmax.backward3(decState[i]->h, target_dist[i], grad.softmaxGrad, index);
         }
     }
+
+	int xx_size = (int)data->tgt.size()-1; 
+	//std::cout << "during softmax delh at " << xx_size << " is " << decState[xx_size]->delh.squaredNorm() << std::endl;
+	//std::cout << "during softmax delh at " << 5 << " is " << decState[5]->delh.squaredNorm() << std::endl;
     gettimeofday(&end_2, NULL);
     timeRecorder[12] += (double)((end_2.tv_sec-start_2.tv_sec)*1000000+(end_2.tv_usec-start_2.tv_usec))/1000;
     // <!!> TIME PART II-II-III: end
-    
+	gettimeofday(&end_1, NULL);
+	timeRecorder[2] += (double)((end_2.tv_sec-start_1.tv_sec)*1000000+(end_1.tv_usec-start_2.tv_usec))/1000;
+	//std::cout << "softmax.grad = " << grad.softmaxGrad.norm() << std::endl; 
     gettimeofday(&end, NULL);
     timeRecorder[3] += (double)((end.tv_sec-start.tv_sec)*1000000+(end.tv_usec-start.tv_usec))/1000;
     // <!!> TIME PART II: end
 
     // this part can't be removed
-  	decState[data->tgt.size()-1]->delc = this->zeros; // <??> can be faster by using setZeros?
-	//decState[data->tgt.size()-1]->delc.setZero();
-    
-    // <!!> TIME PART III: this part needs a time recorder
-    gettimeofday(&start, NULL);
+  	decState[data->tgt.size()-1]->delc = this->zeros;
+	/*
+	decState[data->tgt.size()-1]->delc = this->zeros; // <??> can be faster by using setZeros?
+	std::cout << "////////after assign this->zeros//////" << std::endl;
+	std::cout << decState[data->tgt.size()-1]->delc.array() << std::endl;
+	decState[data->tgt.size()-1]->delc.setZero();
+	std::cout << "**** before *********************" << std::endl;
+	std::cout << "xx cTanh = " << decState[1]->cTanh.squaredNorm() << std::endl;
+	std::cout << "xx delh = " << decState[1]->delh.squaredNorm() << std::endl;
+	std::cout << "xx o = " << decState[1]->o.squaredNorm() << std::endl;
+	std::cout << "+++++++++++++++++++++++++++++++++" << std::endl;
+	std::cout << "curr cTanh = " << decState[xx_size]->cTanh.squaredNorm() << std::endl;
+	std::cout << "curr delh = " << decState[xx_size]->delh.squaredNorm() << std::endl;
+	std::cout << "curr o = " << decState[xx_size]->o.squaredNorm() << std::endl;
+	std::cout << "curr delc = " << decState[xx_size]->delc.squaredNorm() << std::endl;
+	std::cout << "curr f = " << decState[xx_size]->f.squaredNorm() << std::endl;
+	std::cout << "prev delc = " << decState[xx_size-1]->delc.squaredNorm() << std::endl;
+	std::cout << "curr i = " << decState[xx_size]->i.squaredNorm() << std::endl;
+	std::cout << "curr u = " << decState[xx_size]->u.squaredNorm() << std::endl;
+	std::cout << "curr c = " << decState[xx_size]->c.squaredNorm() << std::endl;
+	std::cout << "curr delx = " << decState[xx_size]->delx.squaredNorm() << std::endl;
+	std::cout << "prev delh = " << decState[xx_size-1]->delh.squaredNorm() << std::endl;
+	std::cout << "*********************************" << std::endl;
+	*/
+	// <!!> TIME PART III: this part needs a time recorder
+	// std::cout << "part 3" << std::endl;
+	gettimeofday(&start, NULL);
+	for (int i = data->src.size()-1; i >= 1; -- i)
+	{
+		//delisBuffer[i-1].setZero();
+		//delfsBuffer[i-1].setZero();
+		//delosBuffer[i-1].setZero();
+		//delusBuffer[i-1].setZero();
+		delisBuffer[i-1] = this->zeros;
+		delfsBuffer[i-1] = this->zeros;
+		delosBuffer[i-1] = this->zeros;
+		delfsBuffer[i-1] = this->zeros;
+	}
     // <!!> TIME PART III-I: this part needs a time recorder
     gettimeofday(&start_1, NULL);
-    for (int i = data->tgt.size()-1; i >= 1; --i)
+    int xx_boarder = 1;
+	for (int i = data->tgt.size()-1; i >= 1; --i)
     {
         decState[i-1]->delc = this->zeros;
         this->dec.backward1(decState[i-1], decState[i], delosBuffer[i-1], delisBuffer[i-1], delusBuffer[i-1], delfsBuffer[i-1]);
-    }
-    // 8+4 for loop
-    for (int i = data->tgt.size()-1; i > 1; -- i)
+	}
+	/*
+	VecD xx_delo = ActFunc::logisticPrime(decState[1]->cTanh).array() * decState[1]->delh.array() * decState[1]->o.array();
+	std::cout << "xx_delo[1] = " << xx_delo.squaredNorm() << std::endl;
+	std::cout << "hello cTanh = " << decState[1]->cTanh.squaredNorm() << std::endl;
+	std::cout << "hello delh = " << decState[xx_size-1]->delh.squaredNorm() << std::endl;
+	std::cout << "hello o = " << decState[1]->o.squaredNorm() << std::endl;
+ 
+	std::cout << "***** after ************************" << std::endl;
+	std::cout << "xx cTanh = " << decState[1]->cTanh.squaredNorm() << std::endl;
+	std::cout << "xx delh = " << decState[1]->delh.squaredNorm() << std::endl;
+	std::cout << "xx o = " << decState[1]->o.squaredNorm() << std::endl;
+	std::cout << "++++++++++++++++++++++++++++++++++++" << std::endl;
+	std::cout << "curr cTanh = " << decState[xx_size]->cTanh.squaredNorm() << std::endl;
+	std::cout << "curr delh = " << decState[xx_size]->delh.squaredNorm() << std::endl;
+	std::cout << "curr o = " << decState[xx_size]->o.squaredNorm() << std::endl;
+	std::cout << "curr delc = " << decState[xx_size]->delc.squaredNorm() << std::endl;
+	std::cout << "curr f = " << decState[xx_size]->f.squaredNorm() << std::endl;
+	std::cout << "prev delc = " << decState[xx_size-1]->delc.squaredNorm() << std::endl;
+	std::cout << "curr i = " << decState[xx_size]->i.squaredNorm() << std::endl;
+	std::cout << "curr u = " << decState[xx_size]->u.squaredNorm() << std::endl;
+	std::cout << "curr c = " << decState[xx_size]->c.squaredNorm() << std::endl;
+	std::cout << "curr delx = " << decState[xx_size]->delx.squaredNorm() << std::endl;
+	std::cout << "prev delh = " << decState[xx_size-1]->delh.squaredNorm() << std::endl;
+	std::cout << "*************************" << std::endl;
+	
+	// 8+4 for loopi
+	*/
+
+    for (int i = data->tgt.size()-1; i >= xx_boarder; -- i)
     {
-        grad.lstmTgtGrad.Wxi.noalias() += delisBuffer[i-1] * this->targetEmbed.col(data->tgt[i-1]);
+        grad.lstmTgtGrad.Wxi.noalias() += delisBuffer[i-1] * this->targetEmbed.col(data->tgt[i-1]).transpose();
     }
-    for (int i = data->tgt.size()-1; i > 1; -- i)
+    for (int i = data->tgt.size()-1; i >= xx_boarder; -- i)
     {
         grad.lstmTgtGrad.Whi.noalias() += delisBuffer[i-1] * decState[i-1]->h.transpose();
     }
-    for (int i = data->tgt.size()-1; i > 1; -- i)
+    for (int i = data->tgt.size()-1; i >= xx_boarder; -- i)
     {
-        grad.lstmTgtGrad.Wxf.noalias() += delfsBuffer[i-1] * this->targetEmbed.col(data->tgt[i-1]);
+        grad.lstmTgtGrad.Wxf.noalias() += delfsBuffer[i-1] * this->targetEmbed.col(data->tgt[i-1]).transpose();
     }
-    for (int i = data->tgt.size()-1; i > 1; -- i)
+    for (int i = data->tgt.size()-1; i >= xx_boarder; -- i)
     {
         grad.lstmTgtGrad.Whf.noalias() += delfsBuffer[i-1] * decState[i-1]->h.transpose();
     }
-    for (int i = data->tgt.size()-1; i > 1; -- i)
+    for (int i = data->tgt.size()-1; i >= xx_boarder; -- i)
     {
-        grad.lstmTgtGrad.Wxo.noalias() += delosBuffer[i-1] * this->targetEmbed.col(data->tgt[i-1]);
+        grad.lstmTgtGrad.Wxo.noalias() += delosBuffer[i-1] * this->targetEmbed.col(data->tgt[i-1]).transpose();
     }
-    for (int i = data->tgt.size()-1; i > 1; -- i)
+    for (int i = data->tgt.size()-1; i >= xx_boarder; -- i)
     {
         grad.lstmTgtGrad.Who.noalias() += delosBuffer[i-1] * decState[i-1]->h.transpose(); 
     }
-    for (int i = data->tgt.size()-1; i > 1; -- i)
+    for (int i = data->tgt.size()-1; i >= xx_boarder; -- i)
     {
-        grad.lstmTgtGrad.Wxu.noalias() += delusBuffer[i-1] * this->targetEmbed.col(data->tgt[i-1]);
+        grad.lstmTgtGrad.Wxu.noalias() += delusBuffer[i-1] * this->targetEmbed.col(data->tgt[i-1]).transpose();
     }
-    for (int i = data->tgt.size()-1; i > 1; -- i)
+    for (int i = data->tgt.size()-1; i >= xx_boarder; -- i)
     {
         grad.lstmTgtGrad.Whu.noalias() += delusBuffer[i-1] * decState[i-1]->h.transpose();
     }
-    for (int i = data->tgt.size()-1; i > 1; -- i)
+    for (int i = data->tgt.size()-1; i >= xx_boarder; -- i)
     {
         grad.lstmTgtGrad.bi += delisBuffer[i-1];
     }
-    for (int i = data->tgt.size()-1; i > 1; -- i)
+    for (int i = data->tgt.size()-1; i >= xx_boarder; -- i)
     {
         grad.lstmTgtGrad.bf += delfsBuffer[i-1];
     }
-    for (int i = data->tgt.size()-1; i > 1; -- i)
+    for (int i = data->tgt.size()-1; i >= xx_boarder; -- i)
     {
         grad.lstmTgtGrad.bo += delosBuffer[i-1];
     }
-    for (int i = data->tgt.size()-1; i > 1; -- i)
+    for (int i = data->tgt.size()-1; i >= xx_boarder; -- i)
     {
         grad.lstmTgtGrad.bu += delusBuffer[i-1];
     }
@@ -870,8 +1012,9 @@ void EncDec::train_qiao_4(EncDec::Data* data, std::vector<LSTM::State*>& encStat
     // <!!> TIME PART III-I: end
 
     // <!!> TIME PART III-II: this part need a time recorder
-    gettimeofday(&start_1, NULL);
-    for (int i = data->tgt.size()-1; i >= 1; -- i)
+	// std::cout << "part 3-2" << std::endl;
+	gettimeofday(&start_1, NULL);
+    for (int i = data->tgt.size()-1; i >= xx_boarder; -- i)
     {
         if (grad.targetEmbed.count(data->tgt[i-1]))
         {
@@ -888,15 +1031,32 @@ void EncDec::train_qiao_4(EncDec::Data* data, std::vector<LSTM::State*>& encStat
     gettimeofday(&end, NULL);
     timeRecorder[6] += (double)((end.tv_sec-start.tv_sec)*1000000+(end.tv_usec-start.tv_usec))/1000;
     // <!!> TIME PART III: end
-
-    // this part can't be removed
+	//std::cout << "lstmTgtGrad = " << grad.lstmTgtGrad.norm() << std::endl;
+    
+	//int xx_input;
+	// std::cin >> xx_input;
+	
+	// this part can't be removed
     encState[data->src.size()]->delc = decState[0]->delc;
     encState[data->src.size()]->delh = decState[0]->delh;
 
     // <!!> TIME PART IV: this part needs a time recorder
-    gettimeofday(&start, NULL);
+	// std::cout << "part 4" << std::endl;
+	gettimeofday(&start, NULL);
+	for (int i = data->tgt.size(); i >= 1; -- i)
+	{
+		//delisBuffer[i-1].setZero();
+		//delfsBuffer[i-1].setZero();
+		//delosBuffer[i-1].setZero();
+		//delusBuffer[i-1].setZero();
+		delisBuffer[i-1] = this->zeros;
+		delfsBuffer[i-1] = this->zeros;
+		delosBuffer[i-1] = this->zeros;
+		delusBuffer[i-1] = this->zeros;
+	}
     // <!!> TIME PART IV-I: this part needs a time recorder
-    gettimeofday(&start_1, NULL);
+	// std::cout << "part 4-1" << std::endl;
+	gettimeofday(&start_1, NULL);
     for (int i = data->src.size(); i >= 1; -- i)
     {
         encState[i-1]->delh = this->zeros;
@@ -906,35 +1066,35 @@ void EncDec::train_qiao_4(EncDec::Data* data, std::vector<LSTM::State*>& encStat
     // 8 + 4 for loop
     for (int i = data->src.size(); i >= 1; -- i)
     {
-        grad.lstmSrcGrad.Wxi.noalias() += delisBuffer[i-1] * this->sourceEmbed.col(data->src[i-1]);
+        grad.lstmSrcGrad.Wxi.noalias() += delisBuffer[i-1] * this->sourceEmbed.col(data->src[i-1]).transpose();
     }
     for (int i = data->src.size(); i >= 1; -- i)
     {
-        grad.lstmSrcGrad.Whi.noalias() += delisBuffer[i-1] * encState[i-1]->h;
+        grad.lstmSrcGrad.Whi.noalias() += delisBuffer[i-1] * encState[i-1]->h.transpose();
     }
     for (int i = data->src.size(); i >= 1; -- i)
     {
-        grad.lstmSrcGrad.Wxf.noalias() += delfsBuffer[i-1] * this->sourceEmbed.col(data->src[i-1]);
+        grad.lstmSrcGrad.Wxf.noalias() += delfsBuffer[i-1] * this->sourceEmbed.col(data->src[i-1]).transpose();
     }
     for (int i = data->src.size(); i >= 1; -- i)
     {
-        grad.lstmSrcGrad.Whf.noalias() += delfsBuffer[i-1] * encState[i-1]->h;
+        grad.lstmSrcGrad.Whf.noalias() += delfsBuffer[i-1] * encState[i-1]->h.transpose();
     }
     for (int i = data->src.size(); i >= 1; -- i)
     {
-        grad.lstmSrcGrad.Wxo.noalias() += delosBuffer[i-1] * this->sourceEmbed.col(data->src[i-1]);
+        grad.lstmSrcGrad.Wxo.noalias() += delosBuffer[i-1] * this->sourceEmbed.col(data->src[i-1]).transpose();
     }
     for (int i = data->src.size(); i >= 1; -- i)
     {
-        grad.lstmSrcGrad.Who.noalias() += delosBuffer[i-1] * encState[i-1]->h;
+        grad.lstmSrcGrad.Who.noalias() += delosBuffer[i-1] * encState[i-1]->h.transpose();
     }
     for (int i = data->src.size(); i >= 1; -- i)
     {
-        grad.lstmSrcGrad.Wxu.noalias() += delusBuffer[i-1] * this->sourceEmbed.col(data->src[i-1]);
+        grad.lstmSrcGrad.Wxu.noalias() += delusBuffer[i-1] * this->sourceEmbed.col(data->src[i-1]).transpose();
     }
     for (int i = data->src.size(); i >= 1; -- i)
     {
-        grad.lstmSrcGrad.Whu.noalias() += delusBuffer[i-1] * encState[i-1]->h;
+        grad.lstmSrcGrad.Whu.noalias() += delusBuffer[i-1] * encState[i-1]->h.transpose();
     }
 
     for (int i = data->src.size(); i >= 1; -- i)
@@ -959,12 +1119,13 @@ void EncDec::train_qiao_4(EncDec::Data* data, std::vector<LSTM::State*>& encStat
     // <!!> TIME PART IV-I: end
 
     // <!!> TIME PART IV-II: this part needs a time recorder
-    gettimeofday(&start_1, NULL);
+	// std::cout << "part 4-2" << std::endl;
+	gettimeofday(&start_1, NULL);
     for (int i = data->src.size(); i >= 1; -- i)
     {
         if (grad.sourceEmbed.count(data->src[i-1]))
         {
-            grad.sourceEmbed.at(data->src[i-1]) += encState[i-1]->delx;
+            grad.sourceEmbed.at(data->src[i-1]) += encState[i]->delx;
         }
         else
         {
@@ -978,7 +1139,7 @@ void EncDec::train_qiao_4(EncDec::Data* data, std::vector<LSTM::State*>& encStat
     gettimeofday(&end, NULL);
     timeRecorder[9] += (double)((end.tv_sec-start.tv_sec)*1000000 + (end.tv_usec-start.tv_usec))/1000;
     // <!!> TIME PART IV: end
-    
+	//std::cout << "lstmSrcGrad = " << grad.lstmSrcGrad.norm() << std::endl;
 } // end of train_qiao_4
 
 void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const int numThreads){
@@ -1095,7 +1256,7 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
   			lossTrain += args[id]->loss;
   			args[id]->loss = 0.0;
   		}
-
+	
   		gradNorm = sqrt(grad.norm())/miniBatchSize;
   		Utils::infNan(gradNorm);
   		lr = (gradNorm > clipThreshold ? clipThreshold*learningRate/gradNorm : learningRate);
@@ -1310,7 +1471,7 @@ void EncDec::trainOpenMP_qiao(const Real learningRate, const int miniBatchSize, 
   		
 		Real temp_time = ((k_end.tv_sec-k_start.tv_sec)*1000000+(k_end.tv_usec-k_start.tv_usec))/1000.0;
   		k_time_1 += temp_time;
-		std::cout << "for one minibatch: " << temp_time << std::endl << std::endl;
+		std::cout << "for one minibatch: " << temp_time << " ms" << std::endl << std::endl;
 
 		// ouput the recorded time
 		for (int i = 0; i < numTimers; i ++)
@@ -1343,12 +1504,19 @@ void EncDec::trainOpenMP_qiao(const Real learningRate, const int miniBatchSize, 
   		Utils::infNan(gradNorm);
   		lr = (gradNorm > clipThreshold ? clipThreshold*learningRate/gradNorm : learningRate);
   		lr /= miniBatchSize;
+		
+		// std::cout << "lr = " << lr << std::endl;
 
   		this->enc.sgd(grad.lstmSrcGrad, lr);
   		this->dec.sgd(grad.lstmTgtGrad, lr);
 
   		this->softmax.sgd(grad.softmaxGrad, lr);
+		// std::cout << "enc->Whi = " << this->enc.Whi.squaredNorm() << std::endl;
+		// std::cout << "dec->Whi = " << this->dec.Whi.squaredNorm() << std::endl;
+		// std::cout << "weight = " << this->softmax.weight.squaredNorm() << std::endl;
 
+		// int xx_input;
+		// std::cin >> xx_input;
   		for (auto it = grad.sourceEmbed.begin(); it != grad.sourceEmbed.end(); ++it){
   			this->sourceEmbed.col(it->first) -= lr*it->second;
   		}
@@ -1429,7 +1597,7 @@ void EncDec::trainOpenMP_qiao_2(const Real learningRate, const int miniBatchSize
 	Real k_time_2 = 0.0;
 
     // for smart cache usage and get the size of tgt_voc and max_num_terms;
-    int max_num_terms = 30;
+    int max_num_terms = 60;
     int tgt_voc_size = this->targetVoc.tokenList.size(); 
 	if (args.empty())
     {
@@ -1473,7 +1641,6 @@ void EncDec::trainOpenMP_qiao_2(const Real learningRate, const int miniBatchSize
 	// init for timers
 	if (timers.empty())
 	{
-		std::cout << "hello" << std::endl;
 		for (int i = 0; i < numThreads; ++i)
 		{
 			timers.push_back(new EncDec::ThreadTimer(*this,sizeTimers));
@@ -1538,6 +1705,7 @@ void EncDec::trainOpenMP_qiao_2(const Real learningRate, const int miniBatchSize
   			iter_counter[id] ++;
   			gettimeofday(&(time_rec_start[id]), NULL);
 			// the main training function
+			// std::cout << "i = " << i << std::endl;
   			this->train_qiao_4(this->trainData[i], args[id]->encState, args[id]->decState, args[id]->grad, loss, timers[id]->timeRecorder, args[id]->target_dist, args[id]->delosBuffer, args[id]->delisBuffer, args[id]->delusBuffer, args[id]->delfsBuffer);
   			// end of the main training function
 			gettimeofday(&(time_rec_end[id]), NULL);
@@ -1572,6 +1740,7 @@ void EncDec::trainOpenMP_qiao_2(const Real learningRate, const int miniBatchSize
 		}
 
 		// seq part
+		std::cout << args[0]->grad.norm() << std::endl;
 		gettimeofday(&k_start_1, NULL);
   		for (int id = 0; id < numThreads; ++id){
   			grad += args[id]->grad;
@@ -1580,25 +1749,37 @@ void EncDec::trainOpenMP_qiao_2(const Real learningRate, const int miniBatchSize
   			lossTrain += args[id]->loss;
   			args[id]->loss = 0.0;
   		}
-
-  		gradNorm = sqrt(grad.norm())/miniBatchSize;
+		// std::cout << "check 1" << std::endl;
+		// std::cout << grad.norm() << std::endl;
+		gradNorm = sqrt(grad.norm())/miniBatchSize;
   		Utils::infNan(gradNorm);
   		lr = (gradNorm > clipThreshold ? clipThreshold*learningRate/gradNorm : learningRate);
   		lr /= miniBatchSize;
-
+		
+		// std::cout << "lr = " << lr << std::endl;
   		this->enc.sgd(grad.lstmSrcGrad, lr);
   		this->dec.sgd(grad.lstmTgtGrad, lr);
 
   		this->softmax.sgd(grad.softmaxGrad, lr);
 
-  		for (auto it = grad.sourceEmbed.begin(); it != grad.sourceEmbed.end(); ++it){
-  			this->sourceEmbed.col(it->first) -= lr*it->second;
-  		}
-  		for (auto it = grad.targetEmbed.begin(); it != grad.targetEmbed.end(); ++it){
-  			this->targetEmbed.col(it->first) -= lr*it->second;
-  		}
+		// std::cout << "enc->Whi = " << this->enc.Whi.squaredNorm() << std::endl;
+		// std::cout << "dec->Whi = " << this->dec.Whi.squaredNorm() << std::endl;
+		// std::cout << "weight = " << this->softmax.weight.squaredNorm() << std::endl;
+		// std::cout << "check 2" << std::endl;
+  		
+		// int xx_input;
+		// std::cin >> xx_input;
 
+		for (auto it = grad.sourceEmbed.begin(); it != grad.sourceEmbed.end(); ++it){
+			this->sourceEmbed.col(it->first) -= lr*it->second;
+  		}
+		// std::cout << "check 3" << std::endl;
+  		for (auto it = grad.targetEmbed.begin(); it != grad.targetEmbed.end(); ++it){
+			this->targetEmbed.col(it->first) -= lr*it->second;
+  		}
+		// std::cout << "check 4" << std::endl;
   		grad.init();
+		// std::cout << "check 5" << std::endl;
   		gettimeofday(&k_end_1, NULL);
   		k_time_1 += ((k_end_1.tv_sec-k_start_1.tv_sec)*1000000+(k_end_1.tv_usec-k_start_1.tv_usec))/1000.0;
   	} // end of for (auto it = miniBatch.begin(); it != miniBatch.end(); ++it)

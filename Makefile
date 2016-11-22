@@ -4,8 +4,8 @@
 #
 ################################
 
-CXX=g++ # default compilier
-#CXX=/home/qiao/user/bin/g++ # for magellan
+#CXX=g++ # default compilier
+CXX=/home/qiao/user/bin/g++ # for magellan
 
 EIGEN_LOCATION=./
 #GPERF_LIB_LOCATION=/home/qiao/user/lib # for taura lab

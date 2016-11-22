@@ -1,5 +1,6 @@
 #include "SoftMax.hpp"
 #include "Utils.hpp"
+// #include <iostream>
 
 void SoftMax::calcDist(const VecD& input, VecD& output){
   output = this->bias;
@@ -18,6 +19,12 @@ void SoftMax::backward(const VecD& input, const VecD& output, const int label, V
 
   delta.coeffRef(label, 0) -= 1.0;
   deltaFeature = this->weight.transpose()*delta;
+  /*
+  std::cout << "==== during softmax backward ====" << std::endl;
+  std::cout << "deltaFeature = " << deltaFeature.squaredNorm() << std::endl;
+  std::cout << "delta = " << delta.squaredNorm() << std::endl; 
+  std::cout << "this->weight = " << this->weight.squaredNorm() << std::endl;
+  */
   grad.weight += delta*input.transpose();
   grad.bias += delta;
 }
