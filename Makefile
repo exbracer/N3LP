@@ -15,7 +15,7 @@ BUILD_DIR=objs
 
 TARGETS=
 TARGETS+= n3lp
-TARGETS+= n3lp_tc
+TARGETS+= tc_n3lp
 
 CXXFLAGS=
 CXXFLAGS+= -O3
@@ -53,7 +53,7 @@ $(BUILD_DIR)/n3lp : $(patsubst %, $(BUILD_DIR)/%,$(OBJS))
 	mv $@ ./
 	rm -f ?*~
 
-n3lp_tc: $(BUILD_DIR) $(patsubst %, $(BUILD_DIR)/%, n3lp_tc)
+tc_n3lp: $(BUILD_DIR) $(patsubst %, $(BUILD_DIR)/%, n3lp_tc)
 
 $(BUILD_DIR)/tc_%.o : %.cpp
 	$(CXX) -o $@ -c $< $(CXXFLAGS) $(LDFLAGS) $(TC_LDFLAGS)

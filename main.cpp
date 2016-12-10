@@ -16,7 +16,7 @@ public:
 	int hiddenDim;
 	int miniBatchSize;
 	int numThreads;
-
+	int version;
 	std::string information;
 
 	ArgsTable()
@@ -36,6 +36,7 @@ public:
 		hiddenDim = 50;
 		miniBatchSize = 1;
 		numThreads = 1;
+		version = 0;
 	}
 	int readInArgs(int argc, char ** argv);
 private:
@@ -87,6 +88,12 @@ int ArgsTable::readInArgs(int argc, char ** argv)
 		else if (arg.compare("-n") == 0)
 		{
 			numThreads = atoi(val.c_str());
+			i ++;
+			continue;
+		}
+		else if (arg.compare("-v") == 0)
+		{
+			version = atoi(val.c_str());
 			i ++;
 			continue;
 		}
@@ -143,6 +150,9 @@ int main(int argc, char** argv){
 	const int hiddenDim = args->hiddenDim;
 	const int miniBatchSize = args->miniBatchSize;
 	const int numThreads = args->numThreads;
+
+	const int version = args->version; // to clarify the version of training process
+
 	std::cout << "hahaha" << std::endl;
 	Eigen::initParallel();
 	std::cout << train_src << std::endl;
@@ -154,9 +164,20 @@ int main(int argc, char** argv){
 	std::cout << "hidden dimention = " << hiddenDim << std::endl;
 	std::cout << "miniBatchSize = " << miniBatchSize <<  std::endl;
 	std::cout << "number of threads = " << numThreads << std::endl;
-	//EncDec::demo_qiao(train_src, train_tgt, train_src, train_tgt, learningRate, inputDim, hiddenDim, miniBatchSize, numThreads);
+	std::cout << "version = " << version << std::endl;
 
-	EncDec::demo_qiao_2(train_src, train_tgt, train_src, train_tgt, learningRate, inputDim, hiddenDim, miniBatchSize, numThreads);
+	if (version == 0)
+	{
+		//EncDec::demo();
+	}
+	else if (version == 1)
+	{
+		EncDec::demo_qiao(train_src, train_tgt, train_src, train_tgt, learningRate, inputDim, hiddenDim, miniBatchSize, numThreads);
+	}
+	else if (version == 2)
+	{
+		EncDec::demo_qiao_2(train_src, train_tgt, train_src, train_tgt, learningRate, inputDim, hiddenDim, miniBatchSize, numThreads);
+	}
 	return 0;
 
 }
