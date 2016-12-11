@@ -1210,21 +1210,24 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
   	k_time_1 = 0.0;
   	k_time_2 = 0.0;
 
-  	int max_batch_count = 4;
-  	int batch_count = 0;
+  	// int max_batch_count = 4;
+  	// int batch_count = 0;
 
 	struct timeval start_temp, end_temp;
 
   	for (auto it = miniBatch.begin(); it != miniBatch.end(); ++it){
-    //  std::cout << "\r" << "Progress: " << ++count << "/" << miniBatch.size() << " mini batches" << std::flush;
+		//  std::cout << "\r" << "Progress: " << ++count << "/" << miniBatch.size() << " mini batches" << std::flush;
 
+		/*
 		batch_count ++;
 		std::cout << "batch count = " << batch_count << std::endl << std::endl;
 		if (batch_count > max_batch_count)
 		{
 			break;
 		}
+		*/
 		gettimeofday(&k_start, NULL);  
+		
 
 #pragma omp parallel for num_threads(numThreads) schedule(dynamic) shared(args)
   		for (int i = it->first; i <= it->second; ++i){
@@ -1290,8 +1293,8 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
   	int sum_iter_counter = 0;
   	for (int ii = 0; ii < numThreads; ii ++)
   	{
-  		std::cout << "thread id  = " << ii << ", count = " << iter_counter[ii] << std::endl;
-  		sum_iter_counter += iter_counter[ii];
+  		std::cout << "thread id  = " << ii << ", count = " << iter_counter[ii]+1 << std::endl;
+  		sum_iter_counter += iter_counter[ii]+1;
   	}
   	std::cout << "sum = " << sum_iter_counter << std::endl;
 	// here for record into file
@@ -1310,9 +1313,6 @@ void EncDec::trainOpenMP(const Real learningRate, const int miniBatchSize, const
   	}
   	fout_start.close();
   	fout_end.close();
-
-	// for a quick test
-	return;
 
   	gettimeofday(&start, 0);
 
@@ -1553,8 +1553,8 @@ void EncDec::trainOpenMP_qiao(const Real learningRate, const int miniBatchSize, 
 	int sum_iter_counter = 0;
   	for (int ii = 0; ii < numThreads; ii ++)
   	{
-  		std::cout << "thread id  = " << ii << ", count = " << iter_counter[ii] << std::endl;
-  		sum_iter_counter += iter_counter[ii];
+  		std::cout << "thread id  = " << ii << ", count = " << iter_counter[ii]+1 << std::endl;
+  		sum_iter_counter += iter_counter[ii]+1;
   	}
   	std::cout << "sum = " << sum_iter_counter << std::endl;
 
@@ -1631,6 +1631,7 @@ void EncDec::trainOpenMP_qiao_2(const Real learningRate, const int miniBatchSize
 	Real lossTrain = 0.0, perpDev = 0.0, denom = 0.0;
 	Real gradNorm, lr = learningRate;
 	const Real clipThreshold = 3.0;
+	
 	struct timeval start, end;
 	std::cout << "size = " << sizeof(Real) << std::endl;
 	
@@ -1643,7 +1644,7 @@ void EncDec::trainOpenMP_qiao_2(const Real learningRate, const int miniBatchSize
 	struct timeval k_start, k_end;
 	struct timeval k_start_1, k_end_1;
 	struct timeval k_start_2, k_end_2;
-	Real k_time = 0.0;
+	
 	Real k_time_1 = 0.0;
 	Real k_time_2 = 0.0;
 
@@ -1692,6 +1693,7 @@ void EncDec::trainOpenMP_qiao_2(const Real learningRate, const int miniBatchSize
 	// init for timers
 	if (timers.empty())
 	{
+		std::cout << "initialize timers" << std::endl;
 		for (int i = 0; i < numThreads; ++i)
 		{
 			timers.push_back(new EncDec::ThreadTimer(*this,sizeTimers));
@@ -1733,47 +1735,54 @@ void EncDec::trainOpenMP_qiao_2(const Real learningRate, const int miniBatchSize
   	gettimeofday(&start, 0);
 
   	int count = 0;
-  	k_time = 0.0;
   	k_time_1 = 0.0;
   	k_time_2 = 0.0;
 
-  	int max_batch_count = 4;
-  	int batch_count = 0;
+  	// int max_batch_count = 4;
+  	// int batch_count = 0;
 
 	struct timeval start_temp, end_temp;
 
   	for (auto it = miniBatch.begin(); it != miniBatch.end(); ++it){
-    //  std::cout << "\r" << "Progress: " << ++count << "/" << miniBatch.size() << " mini batches" << std::flush;
+		//  std::cout << "\r" << "Progress: " << ++count << "/" << miniBatch.size() << " mini batches" << std::flush;
 
+		/* use for quick test to do sttop after several mini batch
 		batch_count ++;
 		std::cout << "batch count = " << batch_count << std::endl << std::endl;
 		if (batch_count > max_batch_count)
 		{
 			break;
 		}
-		gettimeofday(&k_start, NULL);  
+		*/
+		gettimeofday(&k_start_1, NULL);  
 
+		// parallel part
 #pragma omp parallel for num_threads(numThreads) schedule(dynamic) shared(args)
   		for (int i = it->first; i <= it->second; ++i){
   			int id = omp_get_thread_num();
   			Real loss;
   			iter_counter[id] ++;
+
+			// record the time used for one sentence: start point
   			gettimeofday(&(time_rec_start[id]), NULL);
+
 			// the main training function
-			// std::cout << "i = " << i << std::endl;
   			this->train_qiao_4(this->trainData[i], args[id]->encState, args[id]->decState, args[id]->grad, loss, timers[id]->timeRecorder, args[id]->target_dist, args[id]->delosBuffer, args[id]->delisBuffer, args[id]->delusBuffer, args[id]->delfsBuffer);
   			// end of the main training function
+			
+			// record the time used for one sentence: end point an dsave the time
 			gettimeofday(&(time_rec_end[id]), NULL);
   			sec_start[id][iter_counter[id]] = time_rec_start[id].tv_sec;
   			usec_start[id][iter_counter[id]] = time_rec_start[id].tv_usec;
   			sec_end[id][iter_counter[id]] = time_rec_end[id].tv_sec;
   			usec_end[id][iter_counter[id]] = time_rec_end[id].tv_usec;
+
   			args[id]->loss += loss;
   		}
 
-  		gettimeofday(&k_end, NULL);
+  		gettimeofday(&k_end_1, NULL);
   		
-		Real temp_time = ((k_end.tv_sec-k_start.tv_sec)*1000000+(k_end.tv_usec-k_start.tv_usec))/1000.0;
+		Real temp_time = ((k_end_1.tv_sec-k_start_1.tv_sec)*1000000+(k_end_1.tv_usec-k_start_1.tv_usec))/1000.0;
   		k_time_1 += temp_time;
 		std::cout << "for one minibatch: " << temp_time << std::endl << std::endl;
 
@@ -1786,7 +1795,7 @@ void EncDec::trainOpenMP_qiao_2(const Real learningRate, const int miniBatchSize
 				sum += timers[j]->timeRecorder[i];
 			}
 			allBatchTimer[i] += sum/numThreads;
-			std::cout << "average time used in part " << i << " = " << sum/numThreads << " ms" << std::endl;
+			// std::cout << "average time used in part " << i << " = " << sum/numThreads << " ms" << std::endl;
 		}
 
 		for (int id = 0; id < numThreads; id ++)
@@ -1794,24 +1803,21 @@ void EncDec::trainOpenMP_qiao_2(const Real learningRate, const int miniBatchSize
 			timers[id]->init();
 		}
 
-		// seq part
-		std::cout << args[0]->grad.norm() << std::endl;
-		gettimeofday(&k_start_1, NULL);
-  		for (int id = 0; id < numThreads; ++id){
+		// serial part
+		gettimeofday(&k_start_2, NULL); // record the time used for serial part
+  		
+		for (int id = 0; id < numThreads; ++id){
   			grad += args[id]->grad;
 			args[id]->grad.init();
   			//args[id]->grad.init_qiao();
   			lossTrain += args[id]->loss;
   			args[id]->loss = 0.0;
   		}
-		// std::cout << "check 1" << std::endl;
-		// std::cout << grad.norm() << std::endl;
 		gradNorm = sqrt(grad.norm())/miniBatchSize;
   		Utils::infNan(gradNorm);
   		lr = (gradNorm > clipThreshold ? clipThreshold*learningRate/gradNorm : learningRate);
   		lr /= miniBatchSize;
 		
-		// std::cout << "lr = " << lr << std::endl;
   		this->enc.sgd(grad.lstmSrcGrad, lr);
   		this->dec.sgd(grad.lstmTgtGrad, lr);
 
@@ -1824,23 +1830,25 @@ void EncDec::trainOpenMP_qiao_2(const Real learningRate, const int miniBatchSize
 			this->targetEmbed.col(it->first) -= lr*it->second;
   		}
   		grad.init();
-  		gettimeofday(&k_end_1, NULL);
-  		k_time_1 += ((k_end_1.tv_sec-k_start_1.tv_sec)*1000000+(k_end_1.tv_usec-k_start_1.tv_usec))/1000.0;
+
+  		gettimeofday(&k_end_2, NULL); // record the time used for serial part
+  		k_time_2 += ((k_end_2.tv_sec-k_start_2.tv_sec)*1000000+(k_end_2.tv_usec-k_start_2.tv_usec))/1000.0;
   	} // end of for (auto it = miniBatch.begin(); it != miniBatch.end(); ++it)
 
   	std::cout << std::endl;
   	gettimeofday(&end, 0);
   	//std::cout << "Training time for this epoch: " << (end.tv_sec-start.tv_sec)/60.0 << " min." << std::endl;
   	std::cout << "Training time for this epoch: " << ((end.tv_sec-start.tv_sec)*1000000 + (end.tv_usec-start.tv_usec))/1000.0 << " ms." << std::endl;
-  	std::cout << "Time for parallel part: " << k_time << " ms." << std::endl;
-  	std::cout << "Time for seq part: " << k_time_1 << " ms." << std::endl;
+  	std::cout << "Time for parallel part: " << k_time_1 << " ms." << std::endl;
+  	std::cout << "Time for seq part: " << k_time_2 << " ms." << std::endl;
 
   	std::cout << "Training Loss (/sentence):    " << lossTrain/this->trainData.size() << std::endl;
-  	int sum_iter_counter = 0;
+  	
+	int sum_iter_counter = 0;
   	for (int ii = 0; ii < numThreads; ii ++)
   	{
-  		std::cout << "thread id  = " << ii << ", count = " << iter_counter[ii] << std::endl;
-  		sum_iter_counter += iter_counter[ii];
+  		std::cout << "thread id  = " << ii << ", count = " << iter_counter[ii]+1 << std::endl;
+  		sum_iter_counter += iter_counter[ii]+1;
   	}
   	std::cout << "sum = " << sum_iter_counter << std::endl;
 
@@ -1851,10 +1859,11 @@ void EncDec::trainOpenMP_qiao_2(const Real learningRate, const int miniBatchSize
 		std::cout << allBatchTimer[i] << std::endl;
 	}
 	std::cout << std::endl;
-	// here for record into file
+	
+	// here for record into file, this is for gantt figure
   	std::ofstream fout_start("time_rec_start.log");
   	std::ofstream fout_end("time_rec_end.log");
-
+	std::ofstream fout_minibatch("time_each_minibatch.log");
   	for (int ii = 0; ii < numThreads; ii ++)
   	{
   		for (int jj = 0; jj <= iter_counter[ii]; jj ++)
@@ -1865,12 +1874,22 @@ void EncDec::trainOpenMP_qiao_2(const Real learningRate, const int miniBatchSize
   			fout_end << ii << " " << end_time << std::endl;
   		}
   	}
+	for (int i = 0; i < numTimers; i ++)
+	{
+		fout_minibatch << allBatchTimer[i] << std::endl;
+	}
+	fout_minibatch << std::endl;
+	for (int i = 0; i < numTimers; i ++)
+	{
+		fout_minibatch << allBatchTimer[i]/miniBatch.size() << std::endl;
+	}
   	fout_start.close();
   	fout_end.close();
-
+	fout_minibatch.close();
 	// for a quick test
 
-  	gettimeofday(&start, 0);
+	// Evaluation part of trainOpenMP() function
+  	gettimeofday(&start, 0); // used to record the time used for the evaluation part
 
 #pragma omp parallel for num_threads(numThreads) schedule(dynamic) shared(perpDev, denom)
   	for (int i = 0; i < (int)this->devData.size(); ++i){
@@ -1895,6 +1914,7 @@ void EncDec::trainOpenMP_qiao_2(const Real learningRate, const int miniBatchSize
   	std::cout << "Evaluation time for this epoch: " << ((end.tv_sec-start.tv_sec)*1000000+(end.tv_usec-start.tv_usec))/1000.0 << " ms." << std::endl;
   	std::cout << "Development loss (/sentence): " << perpDev/this->devData.size() << std::endl;
   	std::cout << "Development perplexity (global): " << exp(perpDev/denom) << std::endl;
+	std::cout << std::endl << "The end of trainOpenMP() function" << std::endl << std::endl;
 
 	return;
 } // end of trainOpenMp_qiao_2
@@ -1963,10 +1983,10 @@ void EncDec::demo(const std::string& srcTrain, const std::string& tgtTrain, cons
 	}
 
 	Real learningRate = 0.5;
-	const int inputDim = 50;
-	const int hiddenDim = 50;
+	const int inputDim = 512;
+	const int hiddenDim = 512;
 	const int miniBatchSize = 128; // <!!> modify this parameter to test
-	const int numThread = 8;
+	const int numThread = 12;
 	EncDec encdec(sourceVoc, targetVoc, trainData, devData, inputDim, hiddenDim);
 	auto test = trainData[0]->src;
 
@@ -1977,19 +1997,18 @@ void EncDec::demo(const std::string& srcTrain, const std::string& tgtTrain, cons
   
   int break_point;
 
-	// std::cin >> break_point;
-
-  for (int i = 0; i < 3; ++i){
+  // use one epoch for quick test
+  for (int i = 0; i < 1; ++i){
   	if (i+1 >= 6){
       //learningRate *= 0.5;
   	}
 
   	std::cout << "\nEpoch " << i+1 << std::endl;
   	encdec.trainOpenMP(learningRate, miniBatchSize, numThread);
-    // std::cout << "### Greedy ###" << std::endl;
-    // encdec.translate(test, 1, 100, 1);
-    // std::cout << "### Beam search ###" << std::endl;
-    // encdec.translate(test, 20, 100, 5);
+    std::cout << "### Greedy ###" << std::endl;
+    encdec.translate(test, 1, 100, 1);
+    std::cout << "### Beam search ###" << std::endl;
+    encdec.translate(test, 20, 100, 5);
 
   	std::ostringstream oss;
   	oss << "model." << i+1 << "itr.bin";
@@ -1997,9 +2016,6 @@ void EncDec::demo(const std::string& srcTrain, const std::string& tgtTrain, cons
 	// std::cin >> break_point;
     //encdec.save(oss.str());
   }
-
-
-  return;
 
   encdec.load("model.1itr.bin");
 
@@ -2123,7 +2139,7 @@ void EncDec::demo_qiao(const std::string& srcTrain, const std::string& tgtTrain,
 
 		std::ostringstream oss;
 		oss << "model." << i+1 << "itr.bin";
-		encdec.save(oss.str());
+		// encdec.save(oss.str());
 	}
 
 
@@ -2249,7 +2265,7 @@ void EncDec::demo_qiao_2(const std::string& srcTrain, const std::string& tgtTrai
 
 		std::ostringstream oss;
 		oss << "model." << i+1 << "itr.bin";
-		encdec.save(oss.str());
+		//encdec.save(oss.str());
 	}
 
     // just care about the training process

@@ -153,8 +153,8 @@ int main(int argc, char** argv){
 
 	const int version = args->version; // to clarify the version of training process
 
-	std::cout << "hahaha" << std::endl;
 	Eigen::initParallel();
+	
 	std::cout << train_src << std::endl;
 	std::cout << train_tgt << std::endl;
 	std::cout << test_src << std::endl;
@@ -168,15 +168,18 @@ int main(int argc, char** argv){
 
 	if (version == 0)
 	{
-		//EncDec::demo();
+		// EncDec::demo(train_src, train_tgt, test_src, test_tgt);
+		EncDec::demo(train_src, train_tgt, train_src, train_tgt);
 	}
 	else if (version == 1)
 	{
+		// EncDec::demo_qiao(train_src, train_tgt, test_src, test_tgt, learningRate, inputDim, hiddenDim, miniBatchSize, numThreads);
 		EncDec::demo_qiao(train_src, train_tgt, train_src, train_tgt, learningRate, inputDim, hiddenDim, miniBatchSize, numThreads);
 	}
 	else if (version == 2)
 	{
-		EncDec::demo_qiao_2(train_src, train_tgt, train_src, train_tgt, learningRate, inputDim, hiddenDim, miniBatchSize, numThreads);
+		//EncDec::demo_qiao_2(train_src, train_tgt, test_src, test_tgt, learningRate, inputDim, hiddenDim, miniBatchSize, numThreads);
+		EncDec::demo_qiao_2(train_src, train_tgt, test_src, test_tgt, learningRate, inputDim, hiddenDim, miniBatchSize, numThreads);
 	}
 	return 0;
 
