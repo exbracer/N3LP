@@ -11,12 +11,9 @@ public:
   class DecCandidate;
   class ThreadArg;
     class ThreadArg_2;
-	// for trainOpenMP_qiao
-	class ThreadTimer;
+	class ThreadTimer; // for experiment to record the time
 
-  EncDec(Vocabulary& sourceVoc_, Vocabulary& targetVoc_,
-	 std::vector<EncDec::Data*>& trainData_, std::vector<EncDec::Data*>& devData_,
-	 const int inputDim, const int hiddenDim);
+  EncDec(Vocabulary& sourceVoc_, Vocabulary& targetVoc, std::vector<EncDec::Data*>& trainData_, std::vector<EncDec::Data*>& devData_,const int inputDim, const int hiddenDim);
 
   Rand rnd;
   Vocabulary& sourceVoc;
@@ -40,26 +37,36 @@ public:
   void gradCheck(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad);
   void gradCheck(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, MatD& param, const MatD& grad);
   void train(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss);
-  void train_qiao_1(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss);
-  void train_qiao_2(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss, std::vector<double>& timeRecorder);
-  void train_qiao_3(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss, std::vector<double>& timeRecorder);
   
-    // for new version -- train_qiao_4()
+	/* train function created by qiaoyc for experiments */
+	void train_qiao_1(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss);
+	void train_qiao_2(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss, std::vector<double>& timeRecorder);
+	void train_qiao_3(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss, std::vector<double>& timeRecorder);
     void train_qiao_4(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss, std::vector<double>& timeRecorder, std::vector<VecD>& target_dist, std::vector<VecD>& delosBuffer, std::vector<VecD>& delisBuffer, std::vector<VecD>& delusBuffer, std::vector<VecD>& delfsBuffer);
+	void train_qiao_5();
+	
+	// new train function created ny qiaoyc for practical usage, no time recorder */
+	void train_new_v1(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss, std::vector<VecD>& target_dist, std::vector<VecD>& delosBuffer, std::vector<VecD>& delisBuffer, std::vector<VecD>& delusBuffer, std::vector<VecD>& delfsBuffer);
 
     void trainOpenMP(const Real learningRate, const int miniBatchSize = 1, const int numThreads = 1);
-  void trainOpenMP_qiao(const Real learningRate, const int miniBatchSize = 1, const int numThreads = 1);
-    
-    // for new version -- trainOpenMP_qiao_2()
+	
+	/* trainOpenMP function created by qiao for experiments */	
+	void trainOpenMP_qiao(const Real learningRate, const int miniBatchSize = 1, const int numThreads = 1);
     void trainOpenMP_qiao_2(const Real learningRate, const int miniBatchSize = 1, const int numThreads = 1);
-    void save(const std::string& fileName);
-  void load(const std::string& fileName);
-  static void demo(const std::string& srcTrain, const std::string& tgtTrain, const std::string& srcDev, const std::string& tgtDev);
+    
+	/* trainOpenMP function created by qiaoyc for practical usage, no time recorder*/
+	void trainOpenMP_new_v1(const Real learningRate, const int miniBatchSize = 1, const int numThreads = 1);
+
+	void save(const std::string& fileName);
+	void load(const std::string& fileName);
+	
+	static void demo(const std::string& srcTrain, const std::string& tgtTrain, const std::string& srcDev, const std::string& tgtDev);
+	/* demo function created by qiaoyc for experiments, with time recorders */	
 	static void demo_qiao(const std::string& srcTrain, const std::string& tgtTrain, const std::string& srcDev, const std::string& tgtDev, const Real argsLearningRate, const int argsInputDim, const int argsHiddenDim, const int argsMiniBatchSize, const int argsNumThreads);
+    static void demo_qiao_2(const std::string& srcTrain, const std::string& tgtTrain, const std::string& srcDev, const std::string& tgtDev, const Real argsLearningRate, const int argsInputDim, const int argsHiddenDim, const int argsMiniBatchSize, const int argsNumThreads);
 
-    // for new version -- demo_qiao_2()
-    static void demo_qiao_2(const std::string& srcTrain, const std::string& tgtTrain, const std::string& srcDev, const std::string& tgtDev, const Real argsLearningRate, const int argsInputDim, const int argsHiddenDim, const int argsMinibatchSize, const int argsNumThreads);
-
+	/* demo function crreated by qiaoyc for practical usage, no time recorder */
+	static void demo_new_v1(const std::string& srcTrain, const std::string& tgtTrain, const std::string& srcDev, const std::string& tgtDev, const Real argsLearningRate, const int argsInputDim, const int argsHiddenDim, const int argsMiniBatchSize, const int argsNumThreads);
 };
 class EncDec::Data{
 public:

@@ -99,22 +99,7 @@ void LSTM::forward(const VecD& xt, LSTM::State* cur){
 }
 void LSTM::backward(LSTM::State* prev, LSTM::State* cur, LSTM::Grad& grad, const VecD& xt){
   VecD delo, deli, delu, delf;
-  /*
-	std::cout << "//////before delc////" << std::endl;
-	std::cout << cur->delc.array() << std::endl;
-  */
 	cur->delc.array() += ActFunc::tanhPrime(cur->cTanh).array()*cur->delh.array()*cur->o.array();
-  /*
-	std::cout << "///////delc////" << std::endl;
-  std::cout << cur->delc.array() << std::endl;
-  std::cout << "////////cTanh////" << std::endl;
-  std::cout << ActFunc::tanhPrime(cur->cTanh).array() << std::endl;
-	std::cout << "///delh//////" << std::endl;
-	std::cout << cur->delh.array() << std::endl;
-	std::cout << "//////curr->o///" << std::endl;
-	std::cout << cur->o.array() << std::endl;
-	std::cout << "////////////////////////" << std::endl;
-  */
 	prev->delc.array() += cur->delc.array()*cur->f.array();
   delo = ActFunc::logisticPrime(cur->o).array()*cur->delh.array()*cur->cTanh.array();
   deli = ActFunc::logisticPrime(cur->i).array()*cur->delc.array()*cur->u.array();
@@ -133,31 +118,6 @@ void LSTM::backward(LSTM::State* prev, LSTM::State* cur, LSTM::Grad& grad, const
     this->Who.transpose()*delo+
     this->Whu.transpose()*delu;
 
-	/* 
-	std::cout << "*******during the calculation*********" << std::endl;
-	std::cout << "**** curr delh ****" << std::endl;
-	std::cout << cur->delh.squaredNorm() << std::endl;
-	std::cout << "**** prev delh ****" << std::endl;
-	std::cout << prev->delh.squaredNorm() << std::endl;
-	std::cout << "**** curr delc ****" << std::endl;
-	std::cout << cur->delc.squaredNorm() << std::endl;
-	std::cout << "**** prev delc ****" << std::endl;
-	std::cout << prev->delc.squaredNorm() << std::endl;
-	std::cout << "//// delo is ////" << std::endl;
-	//std::cout << delo.array() << std::endl;
-	std::cout << delo.squaredNorm() << std::endl;
-	std::cout << "//// deli is ////" << std::endl;
-	std::cout << deli.squaredNorm() << std::endl;
-	//std::cout << deli.array() << std::endl;
-	std::cout << "//// delf is ////" << std::endl;
-	std::cout << delf.squaredNorm() << std::endl;
-	//std::cout << delf.array() << std::endl;
-	std::cout << "//// delu is ////" << std::endl;
-	std::cout << delu.squaredNorm() << std::endl;
-	//std::cout << delu.array() << std::endl;
-	std::cout << "*************************************" << std::endl;
-	//std::cout << "prev delh = " << prev->delh.squaredNorm() << std::endl;
-	*/
 	grad.Wxi.noalias() += deli*xt.transpose();
   grad.Whi.noalias() += deli*prev->h.transpose();
 
@@ -174,44 +134,12 @@ void LSTM::backward(LSTM::State* prev, LSTM::State* cur, LSTM::Grad& grad, const
   grad.bf += delf;
   grad.bo += delo;
   grad.bu += delu;
-  /*
-	std::cout << "*********drring the calculation *******" << std::endl;
-	std::cout << "left hand is " << std::endl;
-	std::cout << "curr delc = " << cur->delc.squaredNorm() << std::endl;
-	std::cout << "prev delc = " << prev->delc.squaredNorm() << std::endl;
-	std::cout << "curr delx = " << cur->delx.squaredNorm() << std::endl;
-	std::cout << "prev delh = " << prev->delh.squaredNorm() << std::endl;
-	std::cout << "+++++++++++++++++++++++" << std::endl;
-	std::cout << "right hand is " << std::endl;
-	VecD temp_curr_delc = cur->delc;
-	temp_curr_delc.array() = ActFunc::tanhPrime(cur->cTanh).array() * cur->delh.array() * cur->o.array();
-	VecD temp_prev_delc = prev->delc;
-	temp_prev_delc.array() = cur->delc.array() * cur->f.array();
-	std::cout << "curr delc = " << cur->delc.squaredNorm() << std::endl;
-	std::cout << "prev delc = " << prev->delc.squaredNorm() << std::endl;
-*/
 }
 
 // for smart cache usage
 void LSTM::backward1(LSTM::State* prev, LSTM::State* curr, VecD& delo, VecD& deli, VecD& delu, VecD& delf)
 {
-    // VecD delo, deli, delu, delf;
-	/*
-	std::cout << "//before delc/////" << std::endl;
-	std::cout << curr->delc.array() << std::endl;
-    */
 	curr->delc.array() += ActFunc::tanhPrime(curr->cTanh).array() * curr->delh.array() * curr->o.array();
-	/*
-	std::cout << "/////delc/////" << std::endl;
-	std::cout << curr->delc.array() << std::endl;
-	std::cout << "////cTanh/////" << std::endl;
-	std::cout << ActFunc::tanhPrime(curr->cTanh).array() << std::endl;
-	std::cout << "///////delh///////////" << std::endl;
-	std::cout << curr->delh.array() << std::endl;
-	std::cout << "/////////o/////////" << std::endl;
-	std::cout << curr->o.array() << std::endl;
-	std::cout << "////////////////////" << std::endl;
-	*/
 	prev->delc.array() += curr->delc.array() * curr->f.array();
 
     delo = ActFunc::logisticPrime(curr->o).array() * curr->delh.array() * curr->cTanh.array();
@@ -230,48 +158,6 @@ void LSTM::backward1(LSTM::State* prev, LSTM::State* curr, VecD& delo, VecD& del
         this->Whf.transpose() * delf + 
         this->Who.transpose() * delo + 
 		this->Whu.transpose() * delu;
-	/*	
-	std::cout << "*******during the calculation*********" << std::endl;
-	
-	std::cout << "**** curr delh ****" << std::endl;
-	std::cout << curr->delh.squaredNorm() << std::endl;
-	std::cout << "**** prev delh ****" << std::endl;
-	std::cout << prev->delh.squaredNorm() << std::endl;
-	std::cout << "**** curr delc ****" << std::endl;
-	std::cout << curr->delc.squaredNorm() << std::endl;
-	std::cout << "**** prev delc ****" << std::endl;
-	std::cout << prev->delc.squaredNorm() << std::endl;
-	std::cout << "//// delo is ////" << std::endl;
-	std::cout << delo.squaredNorm() << std::endl;
-	//std::cout << delo.array() << std::endl;
-	std::cout << "//// deli is ////" << std::endl;
-	std::cout << deli.squaredNorm() << std::endl;
-	//std::cout << deli.array() << std::endl;
-	std::cout << "//// delf is ////" << std::endl;
-	std::cout << delf.squaredNorm() << std::endl;
-	//std::cout << delf.array() << std::endl;
-	std::cout << "//// delu is ////" << std::endl;
-	std::cout << delu.squaredNorm() << std::endl;
-	//std::cout << delu.array() << std::endl;
-	std::cout << "*************************************" << std::endl;
-	//std::cout << "prev delh = " << prev->delh.squaredNorm() << std::endl;	
-	*/
-	/*
-	std::cout << "*******during the calculation***********" << std::endl;	
-	std::cout << "left hand is " << std::endl;
-	std::cout << "curr delc = " << curr->delc.squaredNorm() << std::endl;
-	std::cout << "prev delc = " << prev->delc.squaredNorm() << std::endl;
-	std::cout << "curr delx = " << curr->delx.squaredNorm() << std::endl;
-	std::cout << "prev delh = " << prev->delh.squaredNorm() << std::endl;
-	std::cout << "++++++++++++++++++" << std::endl;
-	std::cout << "right hand is " << std::endl;
-	VecD temp_curr_delc = curr->delc;
-	temp_curr_delc.array() = ActFunc::tanhPrime(curr->cTanh).array() * curr->delh.array() * curr->o.array();
-	VecD temp_prev_delc = prev->delc;
-	temp_prev_delc.array() = curr->delc.array() * curr->f.array();
-	std::cout << "curr delc = " << curr->delc.squaredNorm() << std::endl;
-	std::cout << "prev delc = " << prev->delc.squaredNorm() << std::endl;
-*/
 	}
 
 void LSTM::backward(LSTM::State* cur, LSTM::Grad& grad, const VecD& xt){

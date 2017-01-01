@@ -4,8 +4,8 @@
 #
 ################################
 
-#CXX=g++ # default compilier
-CXX=/home/qiao/user/bin/g++ # for magellan
+CXX=g++ # default compilier
+#CXX=/home/qiao/user/bin/g++ # for magellan
 
 EIGEN_LOCATION=./
 #GPERF_LIB_LOCATION=/home/qiao/user/lib # for taura lab
@@ -15,7 +15,7 @@ BUILD_DIR=objs
 
 TARGETS=
 TARGETS+= n3lp
-TARGETS+= tc_n3lp
+#TARGETS+= tc_n3lp
 
 CXXFLAGS=
 CXXFLAGS+= -O3
@@ -53,12 +53,12 @@ $(BUILD_DIR)/n3lp : $(patsubst %, $(BUILD_DIR)/%,$(OBJS))
 	mv $@ ./
 	rm -f ?*~
 
-tc_n3lp: $(BUILD_DIR) $(patsubst %, $(BUILD_DIR)/%, n3lp_tc)
+tc_n3lp: $(BUILD_DIR) $(patsubst %, $(BUILD_DIR)/%, tc_n3lp)
 
 $(BUILD_DIR)/tc_%.o : %.cpp
 	$(CXX) -o $@ -c $< $(CXXFLAGS) $(LDFLAGS) $(TC_LDFLAGS)
 
-$(BUILD_DIR)/n3lp_tc : $(patsubst %, $(BUILD_DIR)/tc_%, $(OBJS))
+$(BUILD_DIR)/tc_n3lp : $(patsubst %, $(BUILD_DIR)/tc_%, $(OBJS))
 	$(CXX) -o $@ $^ $(CXXFLAGS) $(LDFLAGS) $(TC_LDFLAGS)
 	mv $@ ./
 	rm -f ?*~
