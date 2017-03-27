@@ -158,7 +158,31 @@ void LSTM::backward1(LSTM::State* prev, LSTM::State* curr, VecD& delo, VecD& del
         this->Whf.transpose() * delf + 
         this->Who.transpose() * delo + 
 		this->Whu.transpose() * delu;
-	}
+}
+
+void LSTM::backward1_v2(LSTM::State* prev, LSTM::State* curr, MatD& delosBuffer, MatD& delisBuffer, MatD& delusBuffer, MatD& delfsBuffer, int index)
+{
+	curr->delc.array() += ActFunc::tanhPrime(curr->cTanh).array() * curr->delh.array() * curr->o.array();
+	prev->delc.array() += curr->delc.array() * curr->f.array();
+
+	delosBuffer.col(index) = ActFunc::logisticPrime(curr->o).array() * curr->delh.array() * curr->cTanh.array();
+	delisBuffer.col(index) = ActFunc::logisticPrime(curr->i).array() * curr->delc.array() * curr->u.array();
+	delfsBuffer.col(index) = ActFunc::logisticPrime(curr->f).array() * curr->delc.array() * prev->c.array();
+	delusBuffer.col(index) = ActFunc::tanhPrime(curr->u).array() * curr->delc.array() * curr->i.array();
+
+	curr->delx.noalias() = 
+		this->Wxi.transpose() * delisBuffer.col(index) + 
+		this->Wxf.transpose() * delfsBuffer.col(index) + 
+		this->Wxo.transpose() * delosBuffer.col(index) + 
+		this->Wxu.transpose() * delusBuffer.col(index);
+
+	prev->delh.noalias() += 
+		this->Whi.transpose() * delisBuffer.col(index) + 
+		this->Whf.transpose() * delfsBuffer.col(index) + 
+		this->Who.transpose() * delosBuffer.col(index) + 
+		this->Whu.transpose() * delusBuffer.col(index);
+	
+}
 
 void LSTM::backward(LSTM::State* cur, LSTM::Grad& grad, const VecD& xt){
   VecD delo, deli, delu;

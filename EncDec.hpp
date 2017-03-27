@@ -6,11 +6,13 @@
 #include <iostream>
 class EncDec{
 public:
-  class Data;
-  class Grad;
-  class DecCandidate;
-  class ThreadArg;
+	class Data;
+	class Grad;
+	class DecCandidate;
+	class ThreadArg;
     class ThreadArg_2;
+	class ThreadArg_3;
+
 	class ThreadTimer; // for experiment to record the time
 
   EncDec(Vocabulary& sourceVoc_, Vocabulary& targetVoc, std::vector<EncDec::Data*>& trainData_, std::vector<EncDec::Data*>& devData_,const int inputDim, const int hiddenDim);
@@ -43,19 +45,22 @@ public:
 	void train_qiao_2(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss, std::vector<double>& timeRecorder);
 	void train_qiao_3(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss, std::vector<double>& timeRecorder);
     void train_qiao_4(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss, std::vector<double>& timeRecorder, std::vector<VecD>& target_dist, std::vector<VecD>& delosBuffer, std::vector<VecD>& delisBuffer, std::vector<VecD>& delusBuffer, std::vector<VecD>& delfsBuffer);
-	void train_qiao_5();
+	void train_qiao_5(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss, std::vector<double>& timeRecorder, std::vector<VecD>& target_dist, MatD& delosBuffer, MatD& delisBuffer, MatD& delusBuffer, MatD& delfsBuffer);
 	
 	// new train function created ny qiaoyc for practical usage, no time recorder */
 	void train_new_v1(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss, std::vector<VecD>& target_dist, std::vector<VecD>& delosBuffer, std::vector<VecD>& delisBuffer, std::vector<VecD>& delusBuffer, std::vector<VecD>& delfsBuffer);
+	void train_new_v2(EncDec::Data* data, std::vector<LSTM::State*>& encState, std::vector<LSTM::State*>& decState, EncDec::Grad& grad, Real& loss, std::vector<VecD>& target_dist, MatD& delosBuffer, MatD& delisBuffer, MatD& delusBuffer, MatD& delfsBuffer);
 
     void trainOpenMP(const Real learningRate, const int miniBatchSize = 1, const int numThreads = 1);
 	
 	/* trainOpenMP function created by qiao for experiments */	
 	void trainOpenMP_qiao(const Real learningRate, const int miniBatchSize = 1, const int numThreads = 1);
     void trainOpenMP_qiao_2(const Real learningRate, const int miniBatchSize = 1, const int numThreads = 1);
-    
+    void trainOpenMP_qiao_3(const Real learningRate, const int miniBatchSize = 1, const int numThreads = 1);
+
 	/* trainOpenMP function created by qiaoyc for practical usage, no time recorder*/
 	void trainOpenMP_new_v1(const Real learningRate, const int miniBatchSize = 1, const int numThreads = 1);
+	void trainOpenMP_new_v2(const Real learningRate, const int miniBatchSize = 1, const int numThreads = 2);
 
 	void save(const std::string& fileName);
 	void load(const std::string& fileName);
@@ -64,9 +69,12 @@ public:
 	/* demo function created by qiaoyc for experiments, with time recorders */	
 	static void demo_qiao(const std::string& srcTrain, const std::string& tgtTrain, const std::string& srcDev, const std::string& tgtDev, const Real argsLearningRate, const int argsInputDim, const int argsHiddenDim, const int argsMiniBatchSize, const int argsNumThreads);
     static void demo_qiao_2(const std::string& srcTrain, const std::string& tgtTrain, const std::string& srcDev, const std::string& tgtDev, const Real argsLearningRate, const int argsInputDim, const int argsHiddenDim, const int argsMiniBatchSize, const int argsNumThreads);
+	static void demo_qiao_3(const std::string& srcTrain, const std::string& tgtTrain, const std::string& srcDev, const std::string& tgtDev, const Real argsLearningRate, const int argsInputDim, const int argsHiddenDim, const int argsMiniBatchSize, const int argsNumThreads);
 
 	/* demo function crreated by qiaoyc for practical usage, no time recorder */
 	static void demo_new_v1(const std::string& srcTrain, const std::string& tgtTrain, const std::string& srcDev, const std::string& tgtDev, const Real argsLearningRate, const int argsInputDim, const int argsHiddenDim, const int argsMiniBatchSize, const int argsNumThreads);
+	static void demo_new_v2(const std::string& srcTrain, const std::string& tgtTrain, const std::string& srcDev, const std::string& tgtDev, const Real argsLearningRate, const int argsInputDim, const int argsHiddenDim, const int argsMiniBatchSize, const int argsNumThreads);
+
 };
 class EncDec::Data{
 public:
@@ -220,6 +228,32 @@ public:
     std::vector<VecD> delisBuffer;
     std::vector<VecD> delusBuffer;
     std::vector<VecD> delfsBuffer;
+
+    std::vector<VecD> deltaFeatureBuffer;
+    std::vector<VecD> gradWeightBuffer;
+};
+
+class EncDec::ThreadArg_3{
+public:
+    ThreadArg_3(EncDec& encdec_):encdec(encdec_), loss(0.0)
+    {
+        this->grad.lstmSrcGrad = LSTM::Grad(this->encdec.enc);
+        this->grad.lstmTgtGrad = LSTM::Grad(this->encdec.dec);
+        this->grad.softmaxGrad = SoftMax::Grad(this->encdec.softmax);
+    };
+
+    int beg, end;
+    EncDec& encdec;
+    EncDec::Grad grad;
+    Real loss;
+    std::vector<LSTM::State*> encState, decState;
+
+    // buffer for smart cache usage
+    std::vector<VecD> target_dist;
+    MatD delosBuffer;
+    MatD delisBuffer;
+    MatD delusBuffer;
+    MatD delfsBuffer;
 
     std::vector<VecD> deltaFeatureBuffer;
     std::vector<VecD> gradWeightBuffer;

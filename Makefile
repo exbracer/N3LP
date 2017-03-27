@@ -6,6 +6,7 @@
 
 CXX=g++ # default compilier
 #CXX=/home/qiao/user/bin/g++ # for magellan
+#CXX=icc
 
 EIGEN_LOCATION=./
 #GPERF_LIB_LOCATION=/home/qiao/user/lib # for taura lab
@@ -29,11 +30,16 @@ CXXFLAGS+= -DEIGEN_NO_DEBUG
 CXXFLAGS+= -DEIGEN_NO_STATIC_ASSERT
 CXXFLAGS+= -I $(EIGEN_LOCATION)
 CXXFLAGS+= -fopenmp
+#CXXFLAGS+= -openmp
 CXXFLAGS+= -g
-#CXXFLAGS+= -p
-#CXXFLAGS+= -pg
+#CXXFLAGS+= -I${MKLROOT}/include
+#CXXFLAGS+= -mkl=parallel
 LDFLAGS= 
 LDFLAGS+= -lm
+#LDFLAGS+= -L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lmkl_rt -lpthread -lm -ldl
+#LDFLAGS+= -Wl,--no-as-needed -lgomp -lpthread -lm -ldl
+#LDFLAGS+= -Wl,-start-group ${MKLROOT}/lib/intel64/libmkl_intel_lp64.a ${MKLROOT}/lib/intel64/libmkl_gnu_thread.a ${MKLROOT}/lib/intel64/libmkl_core.a -Wl,-end-group -lgomp -lpthread -lm -ldl
+#LDFLAGS+= -liomp5 -lpthread -lm -ldl
 
 TC_LDFLAGS=
 TC_LDFLAGS+= -ltcmalloc -L $(GPERF_LIB_LOCATION) -Wl,-R$(GPERF_LIB_LOCATION)
