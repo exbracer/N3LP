@@ -1,7 +1,7 @@
 #pragma once
-
 #include "Matrix.hpp"
-
+#include "MemoryFootprint.hpp"
+#include "MemoryFootprint2.hpp"
 class SoftMax{
 public:
   SoftMax(){};
@@ -26,6 +26,10 @@ public:
   void save(std::ofstream& ofs);
   void load(std::ifstream& ifs);
 
+	/* functions created by qiaoyc for experiments for memory footprint record */
+  void calcDist_mf_v1(const VecD& input, VecD& output, MemoryFootprint* mf);
+  Real calcLoss_mf_v1(const VecD& input, const int label, MemoryFootprint* mf);
+  void backward_mf_v1(const VecD& input, const VecD& output, const int label, VecD& deltaFeature, SoftMax::Grad& grad, MemoryFootprint* mf);
 };
 
 class SoftMax::Grad{

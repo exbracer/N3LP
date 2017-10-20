@@ -193,6 +193,13 @@ int main(int argc, char** argv){
 	{
 		EncDec::demo_new_v2(train_src, train_tgt, test_src, test_tgt, learningRate, inputDim, hiddenDim, miniBatchSize, numThreads);
 	}
+	else if (version == 6)
+	{
+		EncDec::demo_mf_1(train_src, train_tgt, test_src, test_tgt, learningRate, inputDim, hiddenDim, miniBatchSize, numThreads);
+	}
+	else if (version == 7)
+	{
+		EncDec::demo_mf_2(train_src, train_tgt, test_src, test_tgt, learningRate, inputDim, hiddenDim, miniBatchSize, numThreads);
+	}
 	return 0;
-
 }

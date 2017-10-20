@@ -2,6 +2,8 @@
 
 #include "Matrix.hpp"
 #include "Rand.hpp"
+#include "MemoryFootprint.hpp"
+#include "MemoryFootprint2.hpp"
 #include <fstream>
 
 class LSTM{
@@ -24,6 +26,7 @@ public:
 	virtual void backward(LSTM::State* prev, LSTM::State* cur, LSTM::Grad& grad, const VecD& xt);
     virtual void backward1(LSTM::State* prev, LSTM::State* curr, VecD& delo, VecD& deli, VecD& delu, VecD& delf);
     virtual void backward1_v2(LSTM::State* prev, LSTM::State* curr, MatD& delos, MatD& delis, MatD& delus, MatD& delfs, int index);
+	
 	virtual void backward(LSTM::State* cur, LSTM::Grad& grad, const VecD& xt);
 	void sgd(const LSTM::Grad& grad, const Real learningRate);
 	void save(std::ofstream& ofs);
@@ -32,6 +35,10 @@ public:
 	MatD Wai, Waf, Wao, Wau; //for additional input
 	virtual void forward(const VecD& xt, const VecD& at, const LSTM::State* prev, LSTM::State* cur);
 	virtual void backward(LSTM::State* prev, LSTM::State* cur, LSTM::Grad& grad, const VecD& xt, const VecD& at);
+
+	/* functions added by qiaoyc to get the memory footprint */
+	virtual void forward_mf_v1(const VecD& xt, const LSTM::State* prev, LSTM::State* cur, MemoryFootprint* mf);
+	virtual void backward_mf_v1(LSTM::State* prev, LSTM::State* cur, LSTM::Grad& grad, const VecD& xt, MemoryFootprint* mf);
 };
 
 class LSTM::State{

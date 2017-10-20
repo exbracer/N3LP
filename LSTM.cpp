@@ -1,6 +1,7 @@
 #include "LSTM.hpp"
 #include "ActFunc.hpp"
 #include "Utils.hpp"
+#include <sys/time.h>
 
 LSTM::LSTM(const int inputDim, const int hiddenDim){
   this->Wxi = MatD(hiddenDim, inputDim);
@@ -385,4 +386,191 @@ void LSTM::Grad::operator /= (const Real val){
   this->Wxo /= val; this->Who /= val; this->bo /= val;
   this->Wxu /= val; this->Whu /= val; this->bu /= val;
   this->Wai /= val; this->Waf /= val; this->Wao /= val; this->Wau /= val;
+}
+
+// functions created by qiaoyc for experiments for memory footprint
+void LSTM::forward_mf_v1(const VecD& xt, const LSTM::State* prev, LSTM::State* cur, MemoryFootprint* mf)
+{
+	struct timeval start, end;
+	
+	gettimeofday(&start, NULL);
+	cur->i = this->bi;
+	gettimeofday(&end, NULL);
+	mf->time_s_LSTM_bi.push_back(start);
+	mf->time_e_LSTM_bi.push_back(end);
+
+	gettimeofday(&start, NULL);
+	cur->i.noalias() += this->Wxi*xt + this->Whi*prev->h;
+	gettimeofday(&end, NULL);
+	mf->time_s_LSTM_Wxi.push_back(start);
+	mf->time_s_LSTM_Whi.push_back(start);
+	mf->time_e_LSTM_Wxi.push_back(end);
+	mf->time_e_LSTM_Whi.push_back(end);
+	
+	gettimeofday(&start, NULL);
+	cur->f = this->bf;
+	gettimeofday(&end, NULL);	
+	mf->time_s_LSTM_bf.push_back(start);
+	mf->time_e_LSTM_bf.push_back(end);
+	
+	gettimeofday(&start, NULL);
+	cur->f.noalias() += this->Wxf*xt + this->Whf*prev->h;
+	gettimeofday(&end, NULL);
+	mf->time_s_LSTM_Wxf.push_back(start);
+	mf->time_s_LSTM_Whf.push_back(start);
+	mf->time_e_LSTM_Wxf.push_back(end);
+	mf->time_e_LSTM_Whf.push_back(end);
+	
+	gettimeofday(&start, NULL);
+	cur->o = this->bo;
+	gettimeofday(&end, NULL);
+	mf->time_s_LSTM_bo.push_back(start);
+	mf->time_e_LSTM_bo.push_back(end);
+	
+	gettimeofday(&start, NULL);
+	cur->o.noalias() += this->Wxo*xt + this->Who*prev->h;
+	gettimeofday(&end, NULL);
+	mf->time_s_LSTM_Wxo.push_back(start);
+	mf->time_s_LSTM_Who.push_back(start);
+	mf->time_e_LSTM_Wxo.push_back(end);
+	mf->time_e_LSTM_Who.push_back(end);
+	
+	gettimeofday(&start, NULL);
+	cur->u = this->bu;
+	gettimeofday(&end, NULL);
+	mf->time_s_LSTM_bu.push_back(start);
+	mf->time_e_LSTM_bu.push_back(end);
+	
+	gettimeofday(&start, NULL);
+	cur->u.noalias() += this->Wxu*xt + this->Whu*prev->h;
+	gettimeofday(&start, NULL);
+	mf->time_s_LSTM_Wxu.push_back(start);
+	mf->time_s_LSTM_Whu.push_back(start);
+	mf->time_e_LSTM_Wxu.push_back(end);
+	mf->time_e_LSTM_Whu.push_back(end);
+
+	ActFunc::logistic(cur->i);
+	ActFunc::logistic(cur->f);
+	ActFunc::logistic(cur->o);
+	ActFunc::tanh(cur->u);
+  cur->c = cur->i.array()*cur->u.array() + cur->f.array()*prev->c.array();
+  cur->cTanh = cur->c;
+  ActFunc::tanh(cur->cTanh);
+  cur->h = cur->o.array()*cur->cTanh.array();
+}
+
+void LSTM::backward_mf_v1(LSTM::State* prev, LSTM::State* cur, LSTM::Grad& grad, const VecD& xt, MemoryFootprint* mf){
+  VecD delo, deli, delu, delf;
+	cur->delc.array() += ActFunc::tanhPrime(cur->cTanh).array()*cur->delh.array()*cur->o.array();
+	prev->delc.array() += cur->delc.array()*cur->f.array();
+  delo = ActFunc::logisticPrime(cur->o).array()*cur->delh.array()*cur->cTanh.array();
+  deli = ActFunc::logisticPrime(cur->i).array()*cur->delc.array()*cur->u.array();
+  delf = ActFunc::logisticPrime(cur->f).array()*cur->delc.array()*prev->c.array();
+  delu = ActFunc::tanhPrime(cur->u).array()*cur->delc.array()*cur->i.array();
+  
+	struct timeval start, end;
+
+	gettimeofday(&start, NULL);
+  cur->delx.noalias() =
+    this->Wxi.transpose()*deli+
+    this->Wxf.transpose()*delf+
+    this->Wxo.transpose()*delo+
+    this->Wxu.transpose()*delu;
+	gettimeofday(&end, NULL);
+	mf->time_s_LSTM_Wxi.push_back(start);
+	mf->time_s_LSTM_Wxf.push_back(start);
+	mf->time_s_LSTM_Wxo.push_back(start);
+	mf->time_s_LSTM_Wxu.push_back(start);
+	mf->time_e_LSTM_Wxi.push_back(end);
+	mf->time_e_LSTM_Wxf.push_back(end);
+	mf->time_e_LSTM_Wxo.push_back(end);
+	mf->time_e_LSTM_Wxu.push_back(end);
+
+	gettimeofday(&start, NULL);
+  prev->delh.noalias() +=
+    this->Whi.transpose()*deli+
+    this->Whf.transpose()*delf+
+    this->Who.transpose()*delo+
+    this->Whu.transpose()*delu;
+	gettimeofday(&end, NULL);
+	mf->time_s_LSTM_Whi.push_back(start);
+	mf->time_s_LSTM_Whf.push_back(start);
+	mf->time_s_LSTM_Who.push_back(start);
+	mf->time_s_LSTM_Whu.push_back(start);
+	mf->time_e_LSTM_Whi.push_back(end);
+	mf->time_e_LSTM_Whf.push_back(end);
+	mf->time_e_LSTM_Who.push_back(end);
+	mf->time_e_LSTM_Whu.push_back(end);
+
+	gettimeofday(&start, NULL);
+	grad.Wxi.noalias() += deli*xt.transpose();
+	gettimeofday(&end, NULL);
+	mf->time_s_LSTM_Grad_Wxi.push_back(start);
+	mf->time_e_LSTM_Grad_Wxi.push_back(end);
+
+	gettimeofday(&start, NULL);
+	grad.Whi.noalias() += deli*prev->h.transpose();
+	gettimeofday(&end, NULL);
+	mf->time_s_LSTM_Grad_Whi.push_back(start);
+	mf->time_e_LSTM_Grad_Whi.push_back(end);
+
+	gettimeofday(&start, NULL);
+	grad.Wxf.noalias() += delf*xt.transpose();
+	gettimeofday(&end, NULL);
+	mf->time_s_LSTM_Grad_Wxf.push_back(start);
+	mf->time_e_LSTM_Grad_Wxf.push_back(end);
+	
+	gettimeofday(&start, NULL);
+	grad.Whf.noalias() += delf*prev->h.transpose();
+	gettimeofday(&end, NULL);
+	mf->time_s_LSTM_Grad_Whf.push_back(start);
+	mf->time_e_LSTM_Grad_Whf.push_back(end);
+
+	gettimeofday(&start, NULL);
+	grad.Wxo.noalias() += delo*xt.transpose();
+	gettimeofday(&end, NULL);
+	mf->time_s_LSTM_Grad_Wxo.push_back(start);
+	mf->time_e_LSTM_Grad_Wxo.push_back(end);
+	
+	gettimeofday(&start, NULL);
+	grad.Who.noalias() += delo*prev->h.transpose();
+	gettimeofday(&end, NULL);
+	mf->time_s_LSTM_Grad_Who.push_back(start);
+	mf->time_e_LSTM_Grad_Who.push_back(end);
+
+	gettimeofday(&start, NULL);
+	grad.Wxu.noalias() += delu*xt.transpose();
+	gettimeofday(&end, NULL);
+	mf->time_s_LSTM_Grad_Wxu.push_back(start);
+	mf->time_e_LSTM_Grad_Wxu.push_back(end);
+	
+	gettimeofday(&start, NULL);
+	grad.Whu.noalias() += delu*prev->h.transpose();
+	gettimeofday(&end, NULL);
+	mf->time_s_LSTM_Grad_Whu.push_back(start);
+	mf->time_e_LSTM_Grad_Whu.push_back(end);
+
+	gettimeofday(&start, NULL);
+	grad.bi += deli;
+	gettimeofday(&end, NULL);
+	mf->time_s_LSTM_Grad_bi.push_back(start);
+	mf->time_e_LSTM_Grad_bi.push_back(end);
+	
+	gettimeofday(&start, NULL);
+	grad.bf += delf;
+	gettimeofday(&end, NULL);
+	mf->time_s_LSTM_Grad_bf.push_back(start);
+	mf->time_e_LSTM_Grad_bf.push_back(end);
+	
+	gettimeofday(&start, NULL);
+	grad.bo += delo;
+	gettimeofday(&end, NULL);
+	mf->time_s_LSTM_Grad_bo.push_back(start);
+	mf->time_e_LSTM_Grad_bo.push_back(end);
+	
+	gettimeofday(&start, NULL);
+	grad.bu += delu;
+	gettimeofday(&end, NULL);
+	mf->time_s_LSTM_Grad_bu.push_back(start);
+	mf->time_e_LSTM_Grad_bu.push_back(end);
 }

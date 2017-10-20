@@ -67,10 +67,9 @@ namespace Utils{
   }
 
   inline void infNan(const Real& x){
-    assert(!isnan(x) && !isinf(x));
-	//assert(!isnan(x));
-	//std::cout << "x is " << x << std::endl;
-	//assert(!isinf(x));
+	  Eigen::half temp_x = (Eigen::half)x;
+	  assert(!isnan(temp_x) && !isinf(temp_x));
+	  // assert(!isnan(x) && !isinf(x));
   }
 
   inline void save(std::ofstream& ofs, const MatD& params){
